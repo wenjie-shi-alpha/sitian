@@ -25,7 +25,7 @@ def test_dataset_carries_same_resource_contract_without_truth_in_prompt(tmp_path
     for tool in row["extra_info"]["tools_kwargs"].values():
         assert tool["create_kwargs"]["harness_resources"] == resources
     assert "1234567" not in json.dumps(row["prompt"])
-    assert row["data_source"].endswith("v0.8.3")
+    assert row["data_source"].endswith("v0.8.4")
 
 
 @pytest.mark.parametrize("value", [None, -1, True, float("nan")])

@@ -2,19 +2,21 @@
 
 城市数据和准入交付已回到训练机，原始大文件继续留在9800X3D。训练保持暂停。
 
-当前为Harness v2.2、reward v0.8.3。按用户接受的显式供数延迟假设重建7057个候选案例、固定切分、历史索引和Parquet。历史实际发布时间仍未核验。
+当前为Harness v2.2.1、reward v0.8.4。按用户接受的显式供数延迟假设重建7057个候选案例、固定切分、历史索引和Parquet。历史实际发布时间仍未核验。
+
+开训前复查已修复元数据grounding刷分、同等级内峰值口径不一致、缺少SO2/NO2/CO输出及PM10上限排除真实沙尘值的问题。Schema为v0.6.5；完整六污染物答案在全部7057例上均可拿满结果分。32K上下文配置及原有奖励权重保留，新增气体列可选。使用r4资产，不能复用r3证书或旧checkpoint。
 
 详细范围、限制、检查结果与复现步骤见[离线训练准入说明](docs/TRAINING_READY_2026-09-12.md)。本机最终资产：
 
 - 案例：`data/snapshots/offline_native_v3_20260912_r2/`
-- 准入与训练资产：`data/training_ready/offline_native_v3_20260912_r3/`
+- 准入与训练资产：`data/training_ready/offline_native_v3_20260912_r4/`
 - 机器可读结果：上述准入目录的`certificate.json`
 
 只检查，不启动：
 
 ```bash
 .venv/bin/python scripts/launch_offline_training.py \
-  --bundle data/training_ready/offline_native_v3_20260912_r3 --check-only
+  --bundle data/training_ready/offline_native_v3_20260912_r4 --check-only
 ```
 
 以后开始训练使用此新入口，必须从Qwen3-8B基座开始，不能恢复旧数据协议的checkpoint；旧训练链入口已阻止误续跑。

@@ -178,8 +178,10 @@ def run(out):
         print(f"Native parity: {path.name}",flush=True)
     val=json.loads((Path(protocol["snapshot"])/"manifests/val.json").read_text())
     lifecycle=asyncio.run(_lifecycle(Path(val[0]),out/"assets/tools.yaml"))
+    gas_lifecycle=asyncio.run(_lifecycle(Path(val[0]),out/"assets/tools.yaml",optional_gases=True))
     mask=_direct_verl_response_mask(ROOT/"models/Qwen3-8B")
-    checks={**_config_checks(out/"train.yaml"),**lifecycle["checks"],"actual_verl_assistant_mask":mask["pass"],
+    checks={**_config_checks(out/"train.yaml"),**lifecycle["checks"],
+        **{"gas_"+key:value for key,value in gas_lifecycle["checks"].items()},"actual_verl_assistant_mask":mask["pass"],
         "pinned_verl":subprocess.check_output(["git","-C",str(ROOT/".local/verl-upstream"),"rev-parse","HEAD"],text=True).strip()==PINNED_VERL_COMMIT,
         "all_parquet_rows_preserved":counts==protocol["splits"],"fresh_run_only":cfg.trainer.resume_mode=="disable" and cfg.trainer.resume_from_path is None,
         "context_budget":cfg.data.max_prompt_length+cfg.data.max_response_length==cfg.actor_rollout_ref.rollout.max_model_len,
@@ -187,7 +189,7 @@ def run(out):
         "worker_resource_environment":all(cfg.ray_kwargs.ray_init.runtime_env.env_vars[k]==v for k,v in environment.items())}
     report={"passed":all(checks.values()),"checks":checks,"rows":counts,"maximum_prompt_tokens_with_tools":max_prompt,
         "bound_files": bound_files,
-        "cases":cases,"lifecycle":lifecycle,"mask":mask,"config":file_identity(out/"train.yaml"),
+        "cases":cases,"lifecycle":lifecycle,"gas_lifecycle":gas_lifecycle,"mask":mask,"config":file_identity(out/"train.yaml"),
         "scope":"Real veRL BaseTool, Hydra and tokenizer/continuous-token mask; CPU only, no optimizer or model generation",
         "training_started":False}
     for expected in bound_files:

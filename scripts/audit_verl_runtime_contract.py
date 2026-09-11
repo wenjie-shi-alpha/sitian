@@ -58,7 +58,7 @@ def _first_case(manifest: Path) -> Path:
     return value if value.is_absolute() else REPO_ROOT / value
 
 
-async def _lifecycle(case_dir: Path, tool_config: Path) -> dict:
+async def _lifecycle(case_dir: Path, tool_config: Path, *, optional_gases: bool = False) -> dict:
     # Upstream BaseTool currently prints every schema during construction.
     # Suppress that noise while retaining the schemas in the hashed YAML input.
     with contextlib.redirect_stdout(io.StringIO()):
@@ -108,6 +108,12 @@ async def _lifecycle(case_dir: Path, tool_config: Path) -> dict:
     })
 
     submit_action = scripted.act({"content": guidance_content})
+    gas_probe = {"so2_range": [5.0, 15.0], "no2_range": [190.0, 210.0], "co_range": [0.5, 1.5]}
+    if optional_gases:
+        # Synthetic submission fields exercise parser/replay/serialization;
+        # this probe asserts no forecast skill and consults no hidden truth.
+        for day in submit_action["args"]["forecast"]["daily"]:
+            day.update(gas_probe)
     agent_data.messages.append(_assistant(submit_action, "call-submit"))
     submit_tool = by_name[submit_action["name"]]
     instance, _ = await submit_tool.create(create_kwargs={"case_dir": str(case_dir),
@@ -143,6 +149,12 @@ async def _lifecycle(case_dir: Path, tool_config: Path) -> dict:
             and 0.0 <= terminal_outcome <= 1.0
         ),
     }
+    if optional_gases:
+        normalized = submitted.get("normalized_forecast", {}).get("daily", [])
+        checks["optional_gas_ranges_survive_native_tool_submission"] = (
+            len(normalized) == bundle.horizon
+            and all(day.get(field) == value for day in normalized for field, value in gas_probe.items())
+        )
     return {
         "checks": checks,
         "tools_loaded": len(tools),

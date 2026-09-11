@@ -1,8 +1,19 @@
-# Harness v2.2 原生数据离线训练准入
+# Harness v2.2.1 原生数据离线训练准入
 
-按用户明确接受的**显式供数延迟假设**准备离线训练，训练保持暂停。最终准入以本机 `data/training_ready/offline_native_v3_20260912_r3/certificate.json` 及启动前完整性检查为准。
+按用户明确接受的**显式供数延迟假设**准备离线训练，训练保持暂停。最终准入以本机 `data/training_ready/offline_native_v3_20260912_r4/certificate.json` 及启动前完整性检查为准。
 
 `offline_training_ready`表示下述离线协议的数据、工具、奖励和运行契约通过检查；历史实际发布时间仍未核验，不表示预报技巧或优化器稳定性已经证明。
+
+## 开训前复查修正
+
+本轮复查修复四项实际问题，最终资产改用r4；r3绑定旧实现，完整性门禁会拒绝启动。
+
+1. 元数据刷分：在真实案例上，仅引用气象和指导的样本数曾拿到grounding满分。现在排除覆盖率、测量契约、来源、时间轴、样本计数等元数据分支，引用示例使用同一过滤规则。
+2. 峰值口径：原预报取最高等级最早日，真值取最高数值AQI日，同等级过程的正确浓度预报也会扣分。现在两侧统一按数值AQI选峰值和所在连续污染段。
+3. 输出空间缺项：训练集有50个目标日、冬季选择集有33个目标日，仅由三项主要输出以外的污染物主导。增加可选SO2/NO2/CO上下限整列，CO单位为mg/m³，其余为µg/m³；提交的中点参加AQI、首污与过程派生。省略表示未预测，六污染物真值评分保持完整。区间分量仍只评PM2.5/PM10/O3，可选气体区间没有新增独立区间奖励或校准结论。
+4. 沙尘范围：一例已准入PM10日均真值为2113.8 µg/m³，超过旧2000提交上限。将PM10提交上限扩到10000，保留原始真值和宽区间惩罚。
+
+全量7057例、35285个目标日通过审计：在审计器内部提交完整六污染物真值区间，每例均可得到`outcome_composite=1`。这些答案不写入训练提示、Parquet或rollout。该检查证明输出和奖励一致，不证明模型具有预报能力。最低有效PM2.5输入小时数为48。
 
 ## 数据与固定切分
 
@@ -36,7 +47,7 @@
 
 完整天气证据按`source`和`valid_time`查询；污染证据可用`kind`及JSON Pointer `path`逐层读取，例如 `{"kind":"composition","detail":"full","path":"/aerosol/records/0"}`。超大查询返回缩小范围的建议，不截断JSON。
 
-选中子树保留原字段名和数组索引，防止把`available`、`unit`等元数据换名后作为科学事实领取grounding奖励。方法卡、计算阈值和分页元数据不增加该奖励。Harness升为v2.2，reward升为v0.8.3，数值结果评分权重未改动。
+选中子树保留原字段名和数组索引，防止把`available`、`unit`等元数据换名后作为科学事实领取grounding奖励。方法卡、计算阈值和分页元数据不增加该奖励。Harness升为v2.2.1，reward升为v0.8.4，数值结果评分权重未改动。
 
 ## 时间假设与数据限制
 
@@ -63,14 +74,14 @@
 
 ## 检查、封存与启动
 
-检查包括全量原值和切分核对、全量18次/例输入工具调用、311项回归测试、21项奖励契约检查，以及真实veRL工具生命周期、数据行身份、token预算、连续token的assistant-only mask。运行检查覆盖冬季、空间保留城市、最早无历史案例和拉萨、北京、广州；CPU检查不启动训练或优化器。
+检查包括全量原值和切分核对、全量18次/例输入工具调用、320项回归测试、24项奖励契约检查、7057例全量输出可表达性检查，以及真实veRL工具生命周期、数据行身份、token预算、连续token的assistant-only mask。运行检查覆盖冬季、空间保留城市、最早无历史案例和拉萨、北京、广州；CPU检查不启动训练或优化器。
 
 新准入目录包含15种工具的注册表（早期案例按可用性开放工具）、六份Parquet、两类历史索引、方法卡、运行环境、解析后的训练配置及证书。配置为4张GPU、Qwen3-8B新基座、50步初始训练段，默认禁止恢复旧checkpoint；这50步尚未执行。
 
 ```bash
 # 默认只检查，也可显式写 --check-only；不会启动训练。
 .venv/bin/python scripts/launch_offline_training.py \
-  --bundle data/training_ready/offline_native_v3_20260912_r3 --check-only
+  --bundle data/training_ready/offline_native_v3_20260912_r4 --check-only
 ```
 
 启动前重算案例、模型、索引、Parquet、实现、配置和审计文件的身份；任何不一致都拒绝启动。旧`run_local_training_chain.py`已阻止新harness误续跑旧数据/checkpoint。
@@ -86,6 +97,7 @@
 .venv/bin/python scripts/prepare_offline_training.py --snapshot <新快照目录> --out <新准入目录>
 .local/verl-upstream/.venv/bin/python scripts/audit_offline_runtime.py --out <新准入目录>
 .venv/bin/python scripts/audit_reward_contract.py --out <新准入目录>/audits/reward.json
+.venv/bin/python scripts/audit_reward_population.py --snapshot <新快照目录> --out <新准入目录>/audits/reward_population.json
 .venv/bin/python scripts/seal_offline_training.py --bundle <新准入目录>
 ```
 

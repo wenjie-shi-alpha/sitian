@@ -409,6 +409,42 @@ def run_audit() -> dict:
         "pm25_70_level_2026": pm25_to_level(70, standard=AQI_STANDARD_2026),
     }
 
+    metadata_registry = {
+        "e1": {"tool": "get_diagnostics", "content": {"daily": {
+            "2026-06-02": {"native_coverage": {"u10_ms": {"samples": 8}}}}}},
+        "e2": {"tool": "get_model_guidance", "content": {"sources": {"cams": {
+            "day_coverage": {"daily_pm25": {"2026-06-02": {"samples": 8}}}}}}},
+    }
+    metadata = _score(_perfect_forecast(evidence=[
+        {"type": "diagnostic", "claim": "样本计数", "ref": "e1",
+         "field": "/daily/2026-06-02/native_coverage/u10_ms/samples", "value": 8},
+        {"type": "model_guidance", "claim": "样本计数", "ref": "e2",
+         "field": "/sources/cams/day_coverage/daily_pm25/2026-06-02/samples", "value": 8},
+    ]), tools_called={"get_diagnostics", "get_model_guidance"}, evidence_registry=metadata_registry)
+    checks["metadata_only_citations_receive_zero_grounding"] = {
+        "pass": metadata.components["grounding"] == 0.0,
+        "grounding": metadata.components["grounding"],
+    }
+
+    same_level_truth = {"2026-06-02": 120.0, "2026-06-03": 140.0}
+    same_level = score_forecast({"issue_date": ISSUE_DATE, "daily": [
+        {"date": day, "pm25_range": [value, value]} for day, value in same_level_truth.items()]},
+        same_level_truth, issue_date=ISSUE_DATE, horizon=2)
+    checks["same_level_peak_uses_numeric_aqi_on_both_sides"] = {
+        "pass": same_level.outcome_composite == 1.0,
+        "turning": same_level.details["turning"],
+    }
+    gas_scores = {}
+    for pollutant, value, field in (("SO2", 600, "so2_range"), ("NO2", 200, "no2_range"), ("CO", 18, "co_range")):
+        truth = {"2026-06-02": {"PM2.5": 20, "PM10": 30, "O3": 40, pollutant: value}}
+        result = score_forecast({"issue_date": ISSUE_DATE, "daily": [{"date": "2026-06-02",
+            "pm25_range": [20, 20], "pm10_range": [30, 30], "o3_range": [40, 40], field: [value, value]}]},
+            truth, issue_date=ISSUE_DATE, horizon=1)
+        gas_scores[pollutant] = result.outcome_composite
+    checks["each_optional_gas_can_receive_full_forecast_outcome_credit"] = {
+        "pass": all(value == 1.0 for value in gas_scores.values()), "scores": gas_scores,
+    }
+
     return {
         "artifact_type": "reward_contract_audit",
         "reward": reward_spec(),

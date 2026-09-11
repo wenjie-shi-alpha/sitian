@@ -83,12 +83,23 @@ GROUNDING_SECTION_RULES = {
 }
 
 TRIVIAL_GROUNDING_LEAVES = {
+    "times", "timestamps", "date", "window_start", "window_end_exclusive", "sampling",
+    "pollutant", "available_at", "availability_basis", "actual_publication_verified",
+    "dependency_group", "samples", "expected_native_samples", "native_step_hours",
+    "cycle_covers_full_day", "complete", "n_sources", "last24h_valid_hours", "prev24h_valid_hours",
     "selected_path", "surface_day_complete", "rain_evaluable", "aggregation_note",
     "available", "evidence_ref", "citation_examples", "grounding_instruction",
     "contract_version", "detail", "note", "query_note", "reason", "unit",
     "cycle", "source", "models", "n_models", "role", "valid_time",
     "valid_utc", "valid_bjt", "lead_hour", "issue_relative_hour", "lead_days", "step_hour",
     "submission_evidence_type", "submission_evidence_type_mapping", "n", "count",
+}
+
+# Deny entire metadata subtrees, including numeric/list leaves whose names
+# alone do not identify them as metadata. The same gate builds citation examples.
+GROUNDING_METADATA_BRANCHES = {
+    "native_coverage", "day_coverage", "measurement_contracts", "provenance",
+    "metadata", "budget", "citation_examples", "units", "field_order",
 }
 
 # 任何改变 composite 语义、分量激活规则或默认参数的改动都必须升版。
@@ -118,7 +129,9 @@ TRIVIAL_GROUNDING_LEAVES = {
 # 部分匹配或含缺测的元组不算事实。分量与权重不变。
 # v0.8.2：可验证 analog 扩展到门禁后的历史详情，限制引用到历史事实；方法卡不增加奖励。
 # v0.8.3：原生气象与通风代理可引用；仅实际样本数值计分，参数/阈值/元数据不计分。
-REWARD_VERSION = "0.8.3"
+# v0.8.4: metadata subtree citations receive no credit; AQI peak and optional
+# SO2/NO2/CO outputs share the six-pollutant truth contract (schema v0.6.5).
+REWARD_VERSION = "0.8.4"
 OUTCOME_COMPONENTS = ("level", "event", "interval", "turning", "primary")
 
 
@@ -281,6 +294,14 @@ def _scalar_equal(asserted, actual) -> bool:
 
 def _field_type_allowed(tool: str, pointer: str, evidence_type: str) -> bool:
     """Constrain broad multi-view tools to the semantic section actually cited."""
+    decoded = [part.replace("~1", "/").replace("~0", "~")
+               for part in pointer.strip("/").split("/")]
+    if any(part in GROUNDING_METADATA_BRANCHES for part in decoded):
+        return False
+    # /times/0 and /unit/0 are metadata just like their parent fields.
+    named = [part for part in decoded if not part.isdigit()]
+    if named and named[-1] in TRIVIAL_GROUNDING_LEAVES:
+        return False
     if tool == "get_native_meteorology":
         parts = pointer.strip("/").split("/")
         return (evidence_type == "diagnostic" and len(parts) == 5 and parts[0] == "series"
@@ -412,7 +433,9 @@ def score_forecast(
         truth_levels = {
             d: pm25_to_level(truth_concs[d]["PM2.5"], standard=standards[d]) for d in days
         }
-        event_magnitude = {d: truth_concs[d]["PM2.5"] for d in days}
+        event_magnitude = {
+            d: float(daily_aqi(truth_concs[d], standard=standards[d])["aqi"]) for d in days
+        }
     components: dict[str, Optional[float]] = {}
     details: dict = {"reward_spec": spec}
     details["aqi_standard_by_day"] = standards

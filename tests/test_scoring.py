@@ -38,6 +38,37 @@ def test_extract_event():
     assert extract_event(dict(zip(DATES, [30.0] * 6)), 4) is None
 
 
+@pytest.mark.parametrize("values", [[120, 140, 40], [120, 40, 140], [120, 120, 40]])
+def test_perfect_midpoints_select_same_numeric_aqi_peak_as_truth(values):
+    truth = dict(zip(DATES, values))
+    fc = {"issue_date": ISSUE, "region": "beijing", "daily": [
+        {"date": day, "pm25_range": [value, value]} for day, value in truth.items()]}
+    score = score_forecast(fc, truth, issue_date=ISSUE, horizon=3, region="beijing")
+    assert score.valid
+    assert score.outcome_composite == 1.0
+    assert score.details["turning"]["pred"] == score.details["turning"]["truth"]
+
+
+@pytest.mark.parametrize("pollutant,value,field", [
+    ("SO2", 600, "so2_range"), ("NO2", 200, "no2_range"), ("CO", 18, "co_range")])
+def test_optional_gas_can_represent_true_primary_and_level(pollutant, value, field):
+    truth = {DATES[0]: {"PM2.5": 20, "PM10": 30, "O3": 40, pollutant: value}}
+    daily = {"date": DATES[0], "pm25_range": [20, 20], "pm10_range": [30, 30],
+             "o3_range": [40, 40], field: [value, value]}
+    score = score_forecast({"issue_date": ISSUE, "region": "beijing", "daily": [daily]},
+                           truth, issue_date=ISSUE, horizon=1, region="beijing")
+    assert score.valid and score.outcome_composite == 1.0
+    assert score.details["normalized_forecast"]["daily"][0]["primary_pollutant"] == pollutant
+
+
+def test_extreme_native_dust_day_is_expressible():
+    truth = {DATES[0]: {"PM2.5": 492.5, "PM10": 2113.8, "O3": 87}}
+    fc = {"issue_date": ISSUE, "daily": [{"date": DATES[0], "pm25_range": [492.5, 492.5],
+                                         "pm10_range": [2113.8, 2113.8], "o3_range": [87, 87]}]}
+    result = score_forecast(fc, truth, issue_date=ISSUE, horizon=1)
+    assert result.valid and result.outcome_composite == 1.0
+
+
 def test_perfect_forecast_scores_one():
     fc = _forecast(
         [3, 4, 5, 4, 2, 2],

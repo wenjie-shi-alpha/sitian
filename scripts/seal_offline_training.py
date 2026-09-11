@@ -18,17 +18,17 @@ from rebuild_native_snapshot import write
 def seal(out):
     if (out/"certificate.json").exists(): raise ValueError("already sealed; use a new bundle")
     protocol=json.loads((out/"protocol.json").read_text())
-    reports={n:json.loads((out/"audits"/f"{n}.json").read_text()) for n in ("native_snapshot","input_tools","runtime","reward")}
+    reports={n:json.loads((out/"audits"/f"{n}.json").read_text()) for n in ("native_snapshot","input_tools","runtime","reward","reward_population")}
     snapshot=Path(protocol["snapshot"])
     paths=json.loads((snapshot/"manifests/all.json").read_text())
     current_snapshot=case_bundle_snapshot(paths,relative_to=ROOT)
-    for name in ("native_snapshot", "input_tools"):
+    for name in ("native_snapshot", "input_tools", "reward_population"):
         if reports[name].get("case_snapshot") != current_snapshot:
             raise ValueError(f"stale or unbound {name} audit")
     identities = [reports["native_snapshot"]["audit_implementation"], *reports["native_snapshot"]["source_inputs"],
                   *reports["runtime"]["bound_files"], *reports["input_tools"]["provenance"]["implementation"],
                   reports["input_tools"]["provenance"]["script"], reports["reward"]["scoring_implementation"],
-                  reports["reward"]["schema_implementation"]]
+                  reports["reward"]["schema_implementation"], *reports["reward_population"]["implementation"]]
     for expected in identities:
         path=Path(expected["path"])
         actual=file_identity(path if path.is_absolute() else ROOT/path)
@@ -47,6 +47,7 @@ def seal(out):
     (out/"audits/tests.log").write_text(result.stdout+result.stderr)
     write(out/"audits/tests.json",{"passed":result.returncode==0,"exit_code":result.returncode,"output":result.stdout.strip().splitlines()[-1:]})
     checks={"native_values_truth_time_and_splits":reports["native_snapshot"]["passed"],
+            "all_truths_expressible_with_full_outcome_credit":reports["reward_population"]["passed"],
             "all_case_input_tools":reports["input_tools"]["execution_passed"],
             "real_verl_runtime_and_tokens":reports["runtime"]["passed"],
             "reward_contract":reports["reward"]["passed"],"regression_tests":result.returncode==0,
@@ -63,7 +64,7 @@ def seal(out):
         "rebuild_native_snapshot.py","attach_open_evidence.py","audit_native_snapshot.py","audit_harness_inputs.py",
         "prepare_offline_training.py","prepare_verl_dataset.py","build_historical_case_index.py","build_guidance_bias.py",
         "build_verl_tool_config.py","audit_offline_runtime.py","audit_verl_runtime_contract.py","audit_trajectory_mask.py",
-        "seal_offline_training.py","launch_offline_training.py","run_verl_smoke.sh","run_local_training_chain.py","local_env.sh","audit_reward_contract.py"))
+        "seal_offline_training.py","launch_offline_training.py","run_verl_smoke.sh","run_local_training_chain.py","local_env.sh","audit_reward_contract.py","audit_reward_population.py"))
     files.update((ROOT/"pyproject.toml",ROOT/".local/verl-upstream/uv.lock",ROOT/"configs/verl/sitian_agent_loop.yaml"))
     certificate={"status":"offline_training_ready","generated_utc":datetime.now(timezone.utc).isoformat(),
         "actual_publication_verified":False,"training_started":False,"checks":checks,"reward":reward_spec(),

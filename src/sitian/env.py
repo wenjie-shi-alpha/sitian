@@ -36,7 +36,7 @@ from .scoring import (
     score_forecast,
 )
 
-HARNESS_VERSION = "forecast-harness-v2.2"
+HARNESS_VERSION = "forecast-harness-v2.2.1"
 
 
 _DEFAULT_CITATION_TYPE = {

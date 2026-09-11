@@ -52,6 +52,32 @@ def test_policy_schema_uses_intervals_not_categorical_confidence():
     )
 
 
+def test_optional_gas_columns_are_visible_and_roundtrip_in_all_formats():
+    from sitian.schema import forecast_format_description
+    issue = "2025-12-18"
+    brief = forecast_format_description(issue, 2, "beijing", multi_pollutant=True)
+    schema = forecast_tool_schema(issue, 2, "beijing", multi_pollutant=True)["properties"]["forecast"]
+    assert set(brief["optional_columns"]) <= set(schema["properties"])
+    assert not set(brief["optional_columns"]) & set(schema["required"])
+    assert "mg/m³" in brief["optional_columns"]["co_lo"]
+    base = {"issue_date": issue, "region": "beijing"}
+    table = {"pm25_range": [[20, 20], [20, 20]], "no2_range": [[200, 210], [210, 220]],
+             "co_range": [[0.5, 1.5], [0.5, 1.5]]}
+    compact, errors = validate_forecast({**base, "daily": table}, issue_date=issue, horizon=2)
+    assert not errors
+    flat = {**base, "pm25_lo": [20, 20], "pm25_hi": [20, 20],
+            "no2_lo": [200, 210], "no2_hi": [210, 220], "co_lo": [0.5, 0.5], "co_hi": [1.5, 1.5]}
+    for payload in (flat, compact.to_dict()):
+        fc, errors = validate_forecast(payload, issue_date=issue, horizon=2)
+        assert not errors and fc.to_dict() == compact.to_dict()
+        assert fc.daily[0].primary_pollutant == "NO2"
+    for bad in ({**flat, "no2_hi": [210]}, {**flat, "no2_lo": [-1, 210]},
+                {**flat, "co_hi": [float("inf"), 1.5]}, {**flat, "co_hi": [True, 1.5]},
+                {**base, "daily": {**table, "co_range": None}}):
+        fc, errors = validate_forecast(bad, issue_date=issue, horizon=2)
+        assert fc is None and errors
+
+
 def test_process_head_is_derived_from_daily_intervals():
     """schema-v0.6.0: the policy submits intervals; level/process are derived."""
     obj = example_forecast("2025-12-18", 6, "beijing")

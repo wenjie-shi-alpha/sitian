@@ -11,7 +11,7 @@ analysis/evidence 依赖。GPU 安装、Blackwell 实测结果与旧数据路径
 [`docs/LOCAL_SETUP.md`](docs/LOCAL_SETUP.md)。训练与推理共用独立的
 `.local/verl-upstream/.venv`；复制来的旧 `.venv-vllm` 不作为启动入口。
 
-2026-09-12：Harness v2.2已接入原生城市气象时序、扩散计算、时间安全的真实历史检索及可分段读取的证据。
+2026-09-12：Harness v2.2.1已接入原生城市气象时序、扩散计算、时间安全的真实历史检索及可分段读取的证据。
 7057个候选案例、固定切分、索引与Parquet已重建，按用户接受的供数延迟假设检查离线训练准入，见
 [`docs/TRAINING_READY_2026-09-12.md`](docs/TRAINING_READY_2026-09-12.md)及[`HANDOFF.md`](HANDOFF.md)。
 训练保持暂停；新入口默认只检查准入证书，开始训练须用新基座，不续用旧checkpoint。历史实际发布时间仍未核验。
@@ -64,9 +64,9 @@ FH_BASE_URL=http://127.0.0.1:8000/v1 FH_MODEL=Qwen/Qwen3-8B \
 
 ```
 src/sitian/
-  schema.py      预报对象契约 v0.6.4：策略只提交扁平列式浓度区间；AQI 等级/首污/过程由 harness 从区间中点派生
+  schema.py      预报对象契约 v0.6.5：策略只提交扁平列式浓度区间；AQI 等级/首污/过程由 harness 从区间中点派生
   case.py        CaseBundle：个例数据包 IO、真值视图、时间门禁审计
-  scoring.py     reward v0.8.3：结果分量 + 可核验 grounding（标量或元组事实）；训练 composite 与公平比较用
+  scoring.py     reward v0.8.4：结果分量 + 可核验 grounding（标量或元组事实）；训练 composite 与公平比较用
                  outcome_composite 分离，硬 CSI/MAE/F1/区间分另行报告
   env.py         ForecastEnv：gym 风格多步环境，条件注册开放证据工具，步数预算，稀疏 reward
   synth.py       合成个例生成器（accumulation / clean / guidance_misleading 三剧本，seed 可复现）
@@ -93,7 +93,7 @@ primary .10 / evidence .10 / grounding .05；缺失分量自动弃权去权归�
 - **格式门禁**：校验失败 composite=0；环境内提交失败返回错误可重试（耗步数），支持 RL 学格式自纠；
 - high-impact event 为 AQI>=4，污染 process/turning 为 AQI>=3；阈值、权重均在
   `RewardConfig` 可调。无真实 process 时 turning 弃权，不与 event 重复送分。
-- 当前 reward 版本为 `0.8.1`、forecast schema 为 `0.6.4`（2026-09-03）：策略**只提交**
+- 当前 reward 版本为 `0.8.4`、forecast schema 为 `0.6.5`（2026-09-12）：策略**只提交**
   PM2.5/PM10/O3 三类 80% 区间（扁平列式 `pm25_lo/pm25_hi/...`，各 H 个数字；逐日对象与
   区间表形式仍被接受；lo/hi 写反按序接受；任务简报只给结构说明、不给数值示例——冻结策略曾
   91% 原样照抄示例），AQI 等级、首要污染物与 AQI≥3 过程头由 harness 按 HJ 633
@@ -105,7 +105,9 @@ primary .10 / evidence .10 / grounding .05；缺失分量自动弃权去权归�
   去重，至少两条互不重复且覆盖两个证据类别的断言才满分；换 ref、42/42.0、null、空字符串、
   NaN/Inf 都不能凑科学事实。grounding 只进入训练分，
   不进入模型毕业的结果分。
-  过程起止/峰值由派生的逐日等级确定：取包含最高等级的第一段连续 AQI≥3 污染段。所有新 probe/eval 产物都携带 reward 版本、
+  SO2/NO2/CO可成对添加对应`*_lo/*_hi`整列以表达其他首污风险；CO单位mg/m³。
+  可选气体参加AQI、首污与过程派生，区间分量仍只评三项主要污染物。样本数、覆盖率和测量元数据不能领取grounding分。
+  过程取包含数值AQI最高日的连续 AQI≥3 污染段，同AQI时取最早一天，预报和真值口径一致。所有新 probe/eval 产物都携带 reward 版本、
   config SHA256、case manifest 与 HJ 标准 manifest 哈希；不同 reward 身份的曲线不混比。
 
 ## RL 集成路径

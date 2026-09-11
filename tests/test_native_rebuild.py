@@ -13,6 +13,32 @@ from sitian.native_meteorology import diffusion_conditions, native_weather
 from sitian.scoring import _semantic_evidence_match
 
 
+def test_native_metadata_cannot_be_grounded_or_suggested(tmp_path):
+    from sitian.env import _citation_examples
+    b = native_case(tmp_path)
+    env = ForecastEnv(b, EnvConfig(enable_method_retrieval=False))
+    env.reset()
+    for name, typ, pointers in [
+        ("get_diagnostics", "diagnostic", [
+            "/daily/2025-04-02/native_coverage/u10_ms/samples",
+            "/daily/2025-04-02/native_coverage/u10_ms/complete"]),
+        ("get_model_guidance", "model_guidance", [
+            "/sources/cams/measurement_contracts/daily_o3max/density_assumption_kg_m3",
+            "/sources/cams/day_coverage/daily_pm25/2025-04-02/samples"]),
+    ]:
+        result, _, _, _ = env.step({"name": name, "args": {}})
+        content = result["content"]
+        from sitian.scoring import _json_pointer
+        for pointer in pointers:
+            item = {"type": typ, "ref": content["evidence_ref"], "field": pointer,
+                    "value": _json_pointer(content, pointer)}
+            assert not _semantic_evidence_match(item, env.evidence_registry, {name})
+        for example in content["citation_examples"]:
+            assert _semantic_evidence_match(example, env.evidence_registry, {name})
+    assert _citation_examples("get_observations", {"times": ["2025-04-01T00:00:00Z"],
+                               "sampling": "hourly", "series": {"test": [None]}}, "e1") == []
+
+
 def write_gz(path, rows):
     with gzip.open(path, "wt") as stream:
         for row in rows:

@@ -34,6 +34,8 @@ def _shallow_parameters(name: str, parameters: dict) -> dict:
                 "当前任务的 issue_date、region，以及 pm25_lo、pm25_hi 数字列表；"
                 "多污染物任务还须包含 pm10_lo、pm10_hi、o3_lo、o3_hi。每列长度等于 horizon，"
                 "第 k 项对应起报日后第 k 天；不要把列再包进 daily。"
+                "可成对加so2_lo/so2_hi、no2_lo/no2_hi、co_lo/co_hi表达其他首污风险，"
+                "CO为mg/m³，其余µg/m³；可选列同样须覆盖整个horizon。"
                 "提交 80% 浓度区间，lo <= hi；AQI等级、首要污染物、process 由环境派生，无需提交。"
                 "evidence 引用工具返回的"
                 "evidence_ref、JSON Pointer field 与精确 value。"

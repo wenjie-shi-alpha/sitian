@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Any, Optional
 
-SCHEMA_VERSION = "0.6.4"
+SCHEMA_VERSION = "0.6.5"
 
 # The process head and the daily head describe the same forecast at different
 # resolutions.  Keeping the threshold in the schema contract prevents an agent
@@ -155,6 +155,9 @@ class DailyForecast:
     primary_pollutant: Optional[str] = None
     o3_range: Optional[tuple[float, float]] = None  # O3_8h 日最大值区间（全国多污染物个例用）
     pm10_range: Optional[tuple[float, float]] = None  # PM10 日均区间（沙尘/PM10 主导过程必需）
+    so2_range: Optional[tuple[float, float]] = None
+    no2_range: Optional[tuple[float, float]] = None
+    co_range: Optional[tuple[float, float]] = None  # CO is mg/m³, other gases µg/m³
 
     def to_dict(self) -> dict:
         out = {
@@ -167,6 +170,10 @@ class DailyForecast:
             out["o3_range"] = list(self.o3_range)
         if self.pm10_range is not None:
             out["pm10_range"] = list(self.pm10_range)
+        for name in ("so2_range", "no2_range", "co_range"):
+            value = getattr(self, name)
+            if value is not None:
+                out[name] = list(value)
         return out
 
 
@@ -205,13 +212,23 @@ class Forecast:
 
 
 DERIVED_PRIMARY_PRIORITY = ("PM2.5", "PM10", "O3", "NO2", "SO2", "CO")
-DAILY_TABLE_FIELDS = ("pm25_range", "pm10_range", "o3_range")
+OPTIONAL_GAS_FIELDS = {"so2_range": "SO2", "no2_range": "NO2", "co_range": "CO"}
+OPTIONAL_GAS_MAX = {"so2_range": 6000, "no2_range": 2000, "co_range": 200}
+DAILY_TABLE_FIELDS = ("pm25_range", "pm10_range", "o3_range", *OPTIONAL_GAS_FIELDS)
 FLAT_COLUMN_PAIRS = {
     "pm25_range": ("pm25_lo", "pm25_hi"),
     "pm10_range": ("pm10_lo", "pm10_hi"),
     "o3_range": ("o3_lo", "o3_hi"),
+    "so2_range": ("so2_lo", "so2_hi"),
+    "no2_range": ("no2_lo", "no2_hi"),
+    "co_range": ("co_lo", "co_hi"),
 }
 FLAT_COLUMN_KEYS = tuple(key for pair in FLAT_COLUMN_PAIRS.values() for key in pair)
+OPTIONAL_GAS_COLUMNS = {
+    f"{pollutant.lower()}_{side}": f"可选 {pollutant} 日均浓度区间{label} ({'mg/m³' if pollutant == 'CO' else 'µg/m³'})"
+    for pollutant in OPTIONAL_GAS_FIELDS.values()
+    for side, label in (("lo", "下限"), ("hi", "上限"))
+}
 
 
 EVIDENCE_VALUE_MAX_ITEMS = 8
@@ -249,8 +266,8 @@ def expand_daily_table(table: dict, base: date, horizon: int) -> list[dict]:
     an empty list so the ``exactly horizon entries`` error fires.
     """
     columns = {key: table.get(key) for key in DAILY_TABLE_FIELDS if key in table}
-    lengths = {len(value) for value in columns.values() if isinstance(value, list)}
-    if not columns or lengths != {horizon}:
+    if not columns or any(not isinstance(value, list) or len(value) != horizon
+                          for value in columns.values()):
         return []
     rows = []
     for index in range(horizon):
@@ -261,11 +278,11 @@ def expand_daily_table(table: dict, base: date, horizon: int) -> list[dict]:
     return rows
 
 
-def derive_process(daily: list["DailyForecast"]) -> "ProcessForecast":
+def derive_process(daily: list["DailyForecast"], aqi_values: list[float]) -> "ProcessForecast":
     """Derive the AQI>=PROCESS_EVENT_LEVEL process head from daily levels.
 
-    The selected run is the first contiguous polluted run that contains the
-    maximum forecast level; the peak is the first maximum-level day in it.
+    Select the run containing the highest numeric AQI, breaking equal AQI
+    ties by earliest day, exactly as the truth-side event extraction does.
     """
     polluted = [index for index, item in enumerate(daily)
                 if item.aqi_level >= PROCESS_EVENT_LEVEL]
@@ -279,12 +296,8 @@ def derive_process(daily: list["DailyForecast"]) -> "ProcessForecast":
             run_start = index
         previous = index
     runs.append((run_start, previous))
-    global_max = max(daily[index].aqi_level for index in polluted)
-    start, end = next((run for run in runs
-                       if max(item.aqi_level for item in daily[run[0]:run[1] + 1]) == global_max),
-                      runs[0])
-    peak = next(index for index in range(start, end + 1)
-                if daily[index].aqi_level == global_max)
+    peak = max(polluted, key=lambda index: aqi_values[index])
+    start, end = next(run for run in runs if run[0] <= peak <= run[1])
     return ProcessForecast(True, daily[start].date, daily[peak].date, daily[end].date)
 
 
@@ -315,6 +328,7 @@ def validate_forecast(
         errors.append(f"region must be {region!r}, got {obj.get('region')!r}")
 
     daily_out: list[DailyForecast] = []
+    daily_aqi_values: list[float] = []
     daily = obj.get("daily")
     if daily is None and any(key in obj for key in FLAT_COLUMN_KEYS):
         # schema-v0.6.2 flat-column form: pm25_lo/pm25_hi/... lists at the top
@@ -401,10 +415,22 @@ def validate_forecast(
                     errors.append(f"daily[{i}].pm10_range must be [lo, hi] numbers or omitted")
                 else:
                     pm10lo, pm10hi = _ordered_bounds(pm10rng)
-                    if not (0 <= pm10lo <= pm10hi <= 2000):
-                        errors.append(f"daily[{i}].pm10_range requires 0 <= lo <= hi <= 2000")
+                    # The admitted native archive contains a 2113.8 µg/m³
+                    # dust day; a 2000 cap made its correct forecast invalid.
+                    if not (0 <= pm10lo <= pm10hi <= 10000):
+                        errors.append(f"daily[{i}].pm10_range requires 0 <= lo <= hi <= 10000")
                     else:
                         pm10_out = (pm10lo, pm10hi)
+            gas_ranges = {}
+            for field_name in OPTIONAL_GAS_FIELDS:
+                value = item.get(field_name)
+                if value is None:
+                    continue
+                if (not isinstance(value, (list, tuple)) or len(value) != 2
+                        or not all(_is_number(v) and 0 <= v <= OPTIONAL_GAS_MAX[field_name] for v in value)):
+                    errors.append(f"daily[{i}].{field_name} requires two numbers in 0..{OPTIONAL_GAS_MAX[field_name]}")
+                else:
+                    gas_ranges[field_name] = _ordered_bounds(value)
             # Derive the categorical heads from the interval midpoints under the
             # AQI standard valid on that day.  Ties in IAQI resolve by a fixed
             # pollutant priority so the output is deterministic.
@@ -417,23 +443,29 @@ def validate_forecast(
                 midpoints["PM10"] = (pm10_out[0] + pm10_out[1]) / 2.0
             if o3_out is not None:
                 midpoints["O3"] = (o3_out[0] + o3_out[1]) / 2.0
+            for field_name, bounds in gas_ranges.items():
+                midpoints[OPTIONAL_GAS_FIELDS[field_name]] = bounds[0] / 2.0 + bounds[1] / 2.0
+            numeric_aqi = 0.0
             try:
                 derived = daily_aqi(midpoints, standard=standard)
+                numeric_aqi = float(derived["aqi"])
                 level = int(derived["level"])
                 pp = next((name for name in DERIVED_PRIMARY_PRIORITY
                            if name in derived["primary"]), None)
             except ValueError as exc:
                 errors.append(f"daily[{i}]: cannot derive AQI from intervals ({exc})")
             daily_out.append(DailyForecast(
-                item.get("date", expected), level, (lo, hi), pp, o3_out, pm10_out
+                item.get("date", expected), level, (lo, hi), pp, o3_out, pm10_out,
+                **gas_ranges,
             ))
+            daily_aqi_values.append(numeric_aqi)
 
     process_out: Optional[ProcessForecast] = None
     supplied_process = obj.get("process")
     if supplied_process is not None and not isinstance(supplied_process, dict):
         errors.append("process, if given, must be an object or null")
     if len(daily_out) == horizon and all(1 <= item.aqi_level <= 6 for item in daily_out):
-        process_out = derive_process(daily_out)
+        process_out = derive_process(daily_out, daily_aqi_values)
 
     evidence = obj.get("evidence", [])
     normalized_evidence: list[dict] = []
@@ -529,6 +561,11 @@ def forecast_format_description(issue_date: str, horizon: int, region: str,
                   "列键直接放在 forecast 顶层，不要再包一层 daily"),
         "day_order": dates,
         "columns": columns,
+        **({"optional_columns": OPTIONAL_GAS_COLUMNS,
+            "optional_gases": "有SO2/NO2/CO主导风险时可成对提交对应lo/hi整列；CO单位mg/m³。"
+                "省略表示未预报该项，不当作已知为零；已提交中点参与AQI、首污、过程，"
+                "真值仍为六污染物AQI；当前区间分量只评PM2.5/PM10/O3。"}
+           if multi_pollutant else {}),
         "rule": "数字必须来自你对已查证据的判断；不要抄任何示例或占位值；区间目标 80% 覆盖，lo <= hi",
         "evidence": "列表，每项 {type, claim, ref, field, value}；type 取八类词表之一",
         "not_submitted": ["daily", "aqi_level", "primary_pollutant", "process"],
@@ -568,6 +605,7 @@ def forecast_tool_schema(
                     f"区间按列提交：pm25_lo/pm25_hi（多污染物个例另加 pm10_lo/pm10_hi/o3_lo/o3_hi），"
                     f"每列恰好 {horizon} 个数字，第 k 项对应第 k 个预报日。只需提交浓度区间；"
                     "AQI 等级、首要污染物与 AQI>=3 污染过程由环境按 HJ 633 从区间中点派生，"
+                    "峰值按数值AQI选日；可成对加so2_lo/hi、no2_lo/hi、co_lo/hi表达其他首污风险（CO为mg/m³）。"
                     "不接受也不需要单独提交。"
                 ),
                 "properties": {
@@ -590,6 +628,7 @@ def forecast_tool_schema(
                                 ("o3_lo", "O3_8h 日最大 80% 区间下限(µg/m³)"),
                                 ("o3_hi", "O3_8h 日最大 80% 区间上限(µg/m³)")]
                                if multi_pollutant else [])
+                            + (list(OPTIONAL_GAS_COLUMNS.items()) if multi_pollutant else [])
                         )
                     },
                     "evidence": {
