@@ -28,6 +28,29 @@ def load_module(path,name):
     mod=importlib.util.module_from_spec(spec);sys.modules[name]=mod;spec.loader.exec_module(mod)
     return mod
 
+def cache_store(store):
+    slabs=OrderedDict()
+    def cached_series(ds,var,ref_utc,lat,lon):
+        k=(ds.filepath(),var.name,ref_utc)
+        if k not in slabs:
+            tv=store._pick(ds,'forecast_reference_time','time')
+            times=netCDF4.num2date(tv[:],tv.units)
+            ti=next((i for i,t in enumerate(times) if (t.year,t.month,t.day,t.hour)==(ref_utc.year,ref_utc.month,ref_utc.day,ref_utc.hour)),None)
+            if ti is None:raise KeyError(f'ref {ref_utc} not in file')
+            pv=store._pick(ds,'forecast_period','leadtime_hour','step')
+            leads=np.asarray(pv[:],dtype=float)
+            if 'seconds' in getattr(pv,'units',''):leads=leads/3600
+            arr=var[:,ti] if var.dimensions[0]=='forecast_period' else var[ti]
+            if arr.ndim==4:arr=arr[:,0]
+            slabs[k]=(leads,arr,np.asarray(ds['latitude'][:]),np.asarray(ds['longitude'][:]))
+            if len(slabs)>36:slabs.popitem(last=False)
+        leads,arr,lats,lons=slabs[k]
+        if not min(lats)<=lat<=max(lats) or not min(lons)<=lon<=max(lons):raise ValueError('city_outside_grid')
+        li=int(np.abs(lats-lat).argmin());lj=int(np.abs(lons-lon).argmin())
+        return {int(lh):float(arr[i,li,lj]) for i,lh in enumerate(leads) if not np.ma.is_masked(arr[i,li,lj]) and math.isfinite(float(arr[i,li,lj]))}
+    store._series=cached_series
+    return store
+
 def run(root,out,unbuilt):
     out.mkdir(parents=True,exist_ok=False)
     sys.path.insert(0,str(root/'src'))
@@ -104,27 +127,7 @@ def run(root,out,unbuilt):
     dump(out/'cams_file_inventory.json',profiles)
     # Preserve the builder's extraction semantics; cache already-read ref-time
     # slabs only, avoiding repeated disk decompression for cities sharing a date.
-    slabs=OrderedDict()
-    def cached_series(ds,var,ref_utc,lat,lon):
-        k=(ds.filepath(),var.name,ref_utc)
-        if k not in slabs:
-            tv=store._pick(ds,'forecast_reference_time','time')
-            times=netCDF4.num2date(tv[:],tv.units)
-            ti=next((i for i,t in enumerate(times) if (t.year,t.month,t.day,t.hour)==(ref_utc.year,ref_utc.month,ref_utc.day,ref_utc.hour)),None)
-            if ti is None:raise KeyError(f'ref {ref_utc} not in file')
-            pv=store._pick(ds,'forecast_period','leadtime_hour','step')
-            leads=np.asarray(pv[:],dtype=float)
-            if 'seconds' in getattr(pv,'units',''):leads=leads/3600
-            arr=var[:,ti] if var.dimensions[0]=='forecast_period' else var[ti]
-            if arr.ndim==4:arr=arr[:,0]
-            slabs[k]=(leads,arr,np.asarray(ds['latitude'][:]),np.asarray(ds['longitude'][:]))
-            if len(slabs)>36:slabs.popitem(last=False)
-        leads,arr,lats,lons=slabs[k]
-        if not min(lats)<=lat<=max(lats) or not min(lons)<=lon<=max(lons):raise ValueError('city_outside_grid')
-        li=int(np.abs(lats-lat).argmin());lj=int(np.abs(lons-lon).argmin())
-        return {int(lh):float(arr[i,li,lj]) for i,lh in enumerate(leads) if not np.ma.is_masked(arr[i,li,lj]) and math.isfinite(float(arr[i,li,lj]))}
-    original_series=store._series
-    store._series=cached_series
+    cache_store(store)
     db=sqlite3.connect(f'file:{builder.DB}?mode=ro',uri=True)
     findings=[]
     for n,ep in enumerate(sorted(eps,key=lambda e:(e['issue_date'],e['city']))):
