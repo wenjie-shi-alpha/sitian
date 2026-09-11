@@ -106,7 +106,7 @@ PYTHONPATH=src .local/verl-upstream/.venv/bin/python scripts/audit_verl_runtime_
 显存检查遵循 `CUDA_VISIBLE_DEVICES`，多卡默认启用 layered summon。
 
 初次适配验证覆盖本机软件与模型运行兼容性。后续已启动四卡 FSDP2 LoRA GRPO，
-完成首个分布式更新并保存 checkpoint；恢复检查、50 步 pilot 及结果位置见
+完成分布式更新、checkpoint 保存、恢复后继续更新，工程审计全部通过；50 步 pilot 及结果位置见
 [四卡训练记录](LOCAL_4GPU_TRAINING.md)。预报技能仍需独立评估，现有训练门禁继续保留。
 
 ## Git 范围
