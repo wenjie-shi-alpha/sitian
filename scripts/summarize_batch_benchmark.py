@@ -9,7 +9,41 @@ from pathlib import Path
 import re
 
 ANSI = re.compile(r'\x1b\[[0-9;]*m')
-VALUE = re.compile(r'([\w/.-]+):([-+\d.eE]+|nan|inf)(?=\s|$)')
+NUMBER = r'[-+]?(?:(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?|nan|inf)'
+VALUE = re.compile(r'([\w/.-]+):(' + NUMBER + r')(?=\s|$)')
+METRIC = re.compile(r'([\w/.-]+):(?:np\.(?:float\d+|int\d+)\((' + NUMBER
+                    + r')\)|(' + NUMBER + r')(?=\s|$))')
+
+
+def parse_step_metrics(text):
+    """Read numeric metrics without interpreting interleaved Ray timestamps."""
+    result = {}
+    for line in ANSI.sub('', text).splitlines():
+        match = re.search(r'\bstep:(\d+) - ', line)
+        if match:
+            metrics = {key: float(wrapped or plain)
+                       for key, wrapped, plain in METRIC.findall(line[match.end():])}
+            if 'timing_s/step' in metrics:
+                result.setdefault(int(match[1]), {}).update(metrics)
+    return result
+
+
+def read_step_metrics(log):
+    result = parse_step_metrics(log.read_text(errors='replace'))
+    # Console output can be buffered or interleaved across Ray processes. Native
+    # scalar events provide timely metrics; preserve console precision if present.
+    directory = log.parent / 'tensorboard'
+    if any(directory.glob('events.out.tfevents.*')):
+        from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
+        events = EventAccumulator(str(directory), size_guidance={'scalars': 0}).Reload()
+        by_step = {}
+        for key in events.Tags().get('scalars', []):
+            for event in events.Scalars(key):
+                by_step.setdefault(event.step, {})[key] = event.value
+        for step, metrics in by_step.items():
+            if 'timing_s/step' in metrics:
+                result[step] = metrics | result.get(step, {})
+    return result
 
 
 def read_arm(root, batch, resources, *, arm_name=None, target_prompts=8):
@@ -17,11 +51,7 @@ def read_arm(root, batch, resources, *, arm_name=None, target_prompts=8):
     arm = root / arm_name
     if (arm / 'exit_code').read_text().strip() != '0':
         raise ValueError(f'batch {batch} did not complete')
-    steps = {}
-    for line in ANSI.sub('', (arm / 'train.log').read_text(errors='replace')).splitlines():
-        match = re.search(r'\bstep:(\d+) - ', line)
-        if match:
-            steps[int(match[1])] = {key: float(value) for key, value in VALUE.findall(line)}
+    steps = read_step_metrics(arm / 'train.log')
     if sorted(steps) != list(range(1, target_prompts // batch + 1)):
         raise ValueError(f'batch {batch}: missing/unexpected step metrics')
     for metrics in steps.values():

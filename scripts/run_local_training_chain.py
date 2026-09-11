@@ -20,7 +20,7 @@ import time
 from omegaconf import OmegaConf
 
 from review_training_cases import review
-from summarize_batch_benchmark import ANSI, VALUE
+from summarize_batch_benchmark import read_step_metrics
 from summarize_scaling_benchmark import occupancy
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -70,18 +70,13 @@ def reset_data_checkpoint(source, destination):
 
 
 def read_steps(log):
-    result = {}
-    for line in ANSI.sub('', log.read_text(errors='replace')).splitlines():
-        match = re.search(r'\bstep:(\d+) - ', line)
-        if match:
-            metrics = {key: float(value) for key, value in VALUE.findall(line)}
-            if 'timing_s/step' in metrics:
-                result[int(match[1])] = metrics
-    return result
+    return read_step_metrics(log)
 
 
-def measure(arm, resources, phase, batch, first, last):
+def measure(arm, resources, phase, batch, first, last, *, allow_extra_steps=False):
     steps = read_steps(arm / 'train.log')
+    if allow_extra_steps:
+        steps = {step: metrics for step, metrics in steps.items() if first <= step <= last}
     if sorted(steps) != list(range(first, last + 1)):
         raise ValueError(f'Unexpected optimizer step sequence: {sorted(steps)}')
     for metric in steps.values():
@@ -182,13 +177,183 @@ def make_config(base, parent, destination, arm, batch, target, train_file, panel
     return cfg
 
 
+def observe_progress(root, arm, allowed, reviewed, target, prior_cases, batch):
+    """Diagnostics must never terminate the optimizer process."""
+    try:
+        completed = set(read_steps(arm / 'train.log'))
+        if completed - reviewed:
+            paths = [arm / 'rollouts' / f'{step}.jsonl' for step in sorted(completed)]
+            if all(path.is_file() for path in paths):
+                review(paths, allowed, arm / 'case_review')
+                write_json(root / 'progress.json', {
+                    'phase': arm.name, 'effective_updates': max(completed), 'target': target,
+                    'retained_case_occurrences_mainline': prior_cases + len(completed) * batch,
+                    'updated_utc': datetime.now(timezone.utc).isoformat()})
+                return completed
+    except Exception as error:
+        # A partial event/log/JSONL write can be retried on the next poll. Final
+        # training and checkpoint audits remain mandatory and fail on bad data.
+        print(f'Nonfatal progress observation error: {error!r}', file=sys.stderr, flush=True)
+        try:
+            write_json(root / 'monitor_warning.json', {
+                'error': repr(error), 'utc': datetime.now(timezone.utc).isoformat()})
+        except Exception:
+            pass
+    return reviewed
+
+
+def resume_chain(args):
+    """Preserve the failed run and its baseline; restore all saved training state."""
+    source = args.resume_chain.resolve()
+    root = ROOT / 'data/experiments' / args.run_id
+    if root.resolve() == source:
+        raise ValueError('Recovery requires a new run directory')
+    root.mkdir(parents=True, exist_ok=True)
+    (root / 'launched.lock').mkdir()
+    (root / 'phase').write_text('recovery_audit\n')
+    previous = source / 'long_train'
+    old_config = OmegaConf.load(previous / 'resolved_config.yaml')
+    selection = json.loads((source / 'selection.json').read_text())
+    protocol = json.loads((source / 'protocol.json').read_text())
+    pilot = Path(protocol['reward_and_data_guard']).parent
+    subprocess.run([sys.executable, str(ROOT / 'scripts/evaluate_rl_skill_pilot.py'),
+                    '--run-dir', str(pilot), '--check-only'], check=True)
+    for field in ('train', 'validation_panel', 'tool_config'):
+        if identity(Path(protocol[field]['path'])) != protocol[field]:
+            raise ValueError(f'Frozen {field} changed')
+    checkpoints = list(Path(old_config.trainer.default_local_dir).glob('global_step_*'))
+    parent = max(checkpoints, key=lambda path: int(path.name.removeprefix('global_step_')))
+    step = int(parent.name.removeprefix('global_step_'))
+    if step >= args.total_steps or args.total_steps != selection['long_training_target']:
+        raise ValueError('Recovery must continue to the existing unfinished target')
+    parent_files = checkpoint_identity(parent)
+    old_lineage = json.loads((previous / 'lineage.json').read_text())
+    audit_update(Path(old_lineage['parent']), parent, old_lineage['initial_step'], step,
+                 root / 'recovery_checkpoint_audit.json')
+    profiles = json.loads((source / 'profiles.json').read_text())
+    batch = selection['selected_batch']
+    retained = measure(previous, source / 'resources.jsonl', 'long_train', batch,
+                       old_lineage['initial_step'] + 1, step, allow_extra_steps=True)
+    profiles.append(retained)
+    write_json(root / 'profiles.json', profiles)
+    write_json(root / 'recovered_training_summary.json', retained)
+    recovery = {'source_run': str(source), 'parent': str(parent), 'restored_step': step,
+                'parent_files': parent_files,
+                'completed_but_unsaved_steps_excluded': sorted(s for s in read_steps(previous / 'train.log') if s > step),
+                'preserved_baseline_step': selection['baseline_step'],
+                'changes': ['Strict numeric log parser and native TensorBoard metrics',
+                            'Nonfatal progress diagnostics', 'Checkpoint every update; keep last four',
+                            'Reuse completed frozen baseline validation'],
+                'created_utc': datetime.now(timezone.utc).isoformat()}
+    write_json(root / 'recovery.json', recovery)
+    protocol = protocol | {
+        'created_utc': datetime.now(timezone.utc).isoformat(), 'recovery': recovery,
+        'parent': str(parent), 'mainline_initial_effective_steps': step,
+        'git_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
+        'code': [identity(ROOT / 'scripts' / name) for name in (
+            'run_local_training_chain.py', 'run_local_training_chain.sh', 'summarize_batch_benchmark.py',
+            'review_training_cases.py', 'evaluate_training_chain.py', 'monitor_local_training.py')]}
+    write_json(root / 'protocol.json', protocol)
+    write_json(root / 'selection.json', selection | {'recovery_checkpoint': str(parent)})
+    arm = root / 'long_train'
+    arm.mkdir()
+    validation = arm / 'validation'
+    validation.mkdir()
+    baseline = previous / 'validation' / f"{selection['baseline_step']}.jsonl"
+    shutil.copy2(baseline, validation / baseline.name)
+    # Preserve any completed scheduled evaluation across a later recovery too.
+    for path in (previous / 'validation').glob('*.jsonl'):
+        if int(path.stem) <= step and path.name != baseline.name:
+            shutil.copy2(path, validation / path.name)
+    destination = ROOT / 'data/checkpoints' / args.run_id / 'long_train'
+    cfg = make_config(previous / 'resolved_config.yaml', parent, destination, arm, batch,
+                      args.total_steps, Path(protocol['train']['path']),
+                      Path(protocol['validation_panel']['path']), long_run=True)
+    cfg.trainer.val_before_train = False
+    cfg.trainer.save_freq = 1
+    OmegaConf.save(cfg, arm / 'resolved_config.yaml')
+    env = os.environ | {'SITIAN_TRAIN_BATCH_SIZE': str(batch), 'SITIAN_SMOKE_STEPS': str(args.total_steps),
+                        'TENSORBOARD_DIR': str(arm / 'tensorboard'), 'PYTHONUNBUFFERED': '1'}
+    with (arm / 'runtime_audit.log').open('w') as log:
+        subprocess.run([sys.executable, str(ROOT / 'scripts/audit_verl_runtime_contract.py'),
+                        '--resolved-config', str(arm / 'resolved_config.yaml'),
+                        '--tool-config', str(cfg.actor_rollout_ref.rollout.multi_turn.tool_config_path),
+                        '--out', str(arm / 'runtime_audit.json')],
+                       env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
+    lineage = {'phase': 'long_train', 'parent': str(parent), 'initial_step': step,
+               'target_step': args.total_steps, 'batch': batch, 'data_iterator_restored': True,
+               'parent_files': parent_files, 'config': identity(arm / 'resolved_config.yaml'),
+               'baseline_reused': identity(baseline), 'started_utc': datetime.now(timezone.utc).isoformat()}
+    write_json(arm / 'lineage.json', lineage)
+    import pandas as pd
+    allowed = {item['case_id'] for item in pd.read_parquet(protocol['train']['path'])['extra_info']}
+    review([previous / 'rollouts' / f'{s}.jsonl' for s in range(old_lineage['initial_step'] + 1, step + 1)],
+           allowed, root / 'recovered_case_review')
+    prior_cases = sum(profile['retained_case_occurrences'] for profile in profiles)
+    write_json(root / 'progress.json', {'phase': 'long_train', 'effective_updates': step,
+               'target': args.total_steps, 'retained_case_occurrences_mainline': prior_cases,
+               'updated_utc': datetime.now(timezone.utc).isoformat()})
+    (root / 'phase').write_text('long_train\n')
+    monitor = subprocess.Popen([sys.executable, str(ROOT / 'scripts/monitor_local_training.py'),
+                                '--run-dir', str(root), '--rollout-metrics'])
+    child = None
+    try:
+        command = ['timeout', '--signal=TERM', '--kill-after=60s', '129600',
+                   'uv', 'run', '--no-sync', '--frozen', '--all-packages', '--extra', 'vllm', '--extra', 'fsdp',
+                   'python', '-m', 'verl.trainer.main_ppo', '--config-path', str(arm), '--config-name', 'resolved_config']
+        with (arm / 'train.log').open('w') as log:
+            child = subprocess.Popen(command, cwd=Path(os.environ['SITIAN_VERL_ROOT']), env=env,
+                                     stdout=log, stderr=subprocess.STDOUT)
+            reviewed = set()
+            while child.poll() is None:
+                reviewed = observe_progress(root, arm, allowed, reviewed, args.total_steps, prior_cases, batch)
+                time.sleep(10)
+            status = child.wait()
+        (arm / 'exit_code').write_text(str(status) + '\n')
+        if status:
+            raise RuntimeError(f'Resumed training exited with {status}')
+        final = measure(arm, root / 'resources.jsonl', 'long_train', batch, step + 1, args.total_steps)
+        after = destination / f'global_step_{args.total_steps}'
+        write_json(arm / 'checkpoint_identity.json', checkpoint_identity(after))
+        audit_update(parent, after, step, args.total_steps, arm / 'checkpoint_update_audit.json')
+        review(sorted((arm / 'rollouts').glob('*.jsonl')), allowed, arm / 'case_review')
+        observe_progress(root, arm, allowed, set(), args.total_steps, prior_cases, batch)
+        write_json(root / 'long_training_summary.json', final)
+        lineage.update(completed_utc=datetime.now(timezone.utc).isoformat(),
+                       completed_effective_steps=args.total_steps, checkpoint=str(after),
+                       new_effective_updates=args.total_steps - step)
+        write_json(arm / 'lineage.json', lineage)
+        subprocess.run([sys.executable, str(ROOT / 'scripts/evaluate_training_chain.py'),
+                        '--run-dir', str(root)], check=True)
+        (root / 'phase').write_text('complete\n')
+        (root / 'exit_code').write_text('0\n')
+    except BaseException as error:
+        write_json(root / 'failure.json', {'error': repr(error), 'recovery_parent': str(parent),
+                   'checkpoint_directory': str(destination), 'utc': datetime.now(timezone.utc).isoformat()})
+        (root / 'phase').write_text('failed\n')
+        (root / 'exit_code').write_text('1\n')
+        raise
+    finally:
+        if child is not None and child.poll() is None:
+            child.terminate()
+        monitor.terminate()
+        monitor.wait(timeout=10)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run-id', required=True)
-    parser.add_argument('--source-run', required=True, type=Path)
-    parser.add_argument('--source-unit', required=True)
+    parser.add_argument('--source-run', type=Path)
+    parser.add_argument('--source-unit')
+    parser.add_argument('--resume-chain', type=Path,
+                        help='Continue a stopped chain in a new run directory from its latest saved checkpoint')
     parser.add_argument('--total-steps', type=int, default=50)
     args = parser.parse_args()
+    if args.resume_chain:
+        resume_chain(args)
+        return
+    if not args.source_run or not args.source_unit:
+        parser.error('--source-run and --source-unit are required for a new scaling chain')
     root = ROOT / 'data/experiments' / args.run_id
     root.mkdir(parents=True, exist_ok=True)
     (root / 'launched.lock').mkdir()  # No accidental restart of an existing run.
@@ -273,16 +438,8 @@ def main():
             reviewed = set()
             while child.poll() is None:
                 # Only review after native step metrics, which follow complete rollout dumps.
-                completed = set(read_steps(arm / 'train.log'))
-                if completed - reviewed:
-                    paths = [arm / 'rollouts' / f'{s}.jsonl' for s in sorted(completed)]
-                    if all(path.is_file() for path in paths):
-                        review(paths, allowed, arm / 'case_review')
-                        reviewed = completed
-                        write_json(root / 'progress.json', {'phase': name, 'effective_updates': max(completed),
-                                   'target': args.total_steps, 'retained_case_occurrences_mainline':
-                                   sum(p['retained_case_occurrences'] for p in profiles) + len(completed) * batch,
-                                   'updated_utc': datetime.now(timezone.utc).isoformat()})
+                reviewed = observe_progress(root, arm, allowed, reviewed, args.total_steps,
+                                            sum(p['retained_case_occurrences'] for p in profiles), batch)
                 time.sleep(10)
             status = child.wait()
         (arm / 'exit_code').write_text(str(status) + '\n')
