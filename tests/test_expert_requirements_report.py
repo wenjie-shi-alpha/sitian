@@ -269,6 +269,9 @@ def test_verl_case_path_and_hidden_truth_stay_out_of_model_prompt(tmp_path, monk
     case_dir = tmp_path / relative
     bundle = make_case("clean")
     bundle.expert = None
+    # National dataset admission requires six pollutants, even in this fixture.
+    for daily in bundle.truth["daily"].values():
+        daily.update({"pm10_avg": 40, "o3_8h": 60, "so2_avg": 5, "no2_avg": 20, "co_avg": 0.5})
     bundle.save(case_dir)
     monkeypatch.setattr(prepare_verl_dataset, "REPO_ROOT", tmp_path)
     row = _row(case_dir, "train", 0, require_evidence=False)

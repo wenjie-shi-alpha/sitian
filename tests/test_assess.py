@@ -1,9 +1,11 @@
 """确定性评估层：信号判据单元测试。"""
 from sitian.assess import climatology_context, daily_signals, guidance_meta, obs_trend
+from datetime import datetime, timedelta
 
 
 def test_obs_trend():
-    obs = {"PM2.5": {"series": {"c": [50.0] * 24 + [80.0] * 24}}}
+    obs = {"PM2.5": {"times": [(datetime(2025, 1, 1) + timedelta(hours=h)).isoformat() for h in range(48)],
+                     "series": {"c": [50.0] * 24 + [80.0] * 24}}}
     t = obs_trend(obs, "c")
     assert t["PM2.5"]["change_24h"] == 30.0
 

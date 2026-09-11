@@ -6,7 +6,7 @@
 import json
 
 from sitian.case import HIDDEN_FILES, VISIBLE_FILES
-from sitian.env import ForecastEnv
+from sitian.env import EnvConfig, ForecastEnv
 from sitian.synth import make_case
 
 SENTINEL = 7777.77
@@ -24,6 +24,7 @@ def _dump_all_tool_outputs(env: ForecastEnv) -> str:
         ("get_previous_forecast", {}),
         ("find_similar_cases", {}),
         ("get_assessment", {}),
+        ("retrieve_forecast_methods", {"query": "模式偏差如何订正"}),
     ]
     if env.bundle.evidence:
         calls.extend([
@@ -46,7 +47,7 @@ def test_truth_and_expert_never_leak_through_tools():
     bundle.expert["forecast"]["daily"][0]["pm25_range"] = [SENTINEL, SENTINEL]
     bundle.expert["notes"] = "SENTINEL_NOTES_DO_NOT_LEAK"
 
-    blob = _dump_all_tool_outputs(ForecastEnv(bundle))
+    blob = _dump_all_tool_outputs(ForecastEnv(bundle, EnvConfig(max_steps=20)))
     assert str(SENTINEL) not in blob
     assert "SENTINEL_NOTES_DO_NOT_LEAK" not in blob
     assert '"truth"' not in blob and '"expert"' not in blob

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Any, Optional
 
@@ -152,37 +152,6 @@ class CaseBundle:
 
     # ---------- 审计 ----------
     def audit_time_gate(self) -> list[str]:
-        """机检时间门禁：实况时刻必须严格早于起报日 08:00。返回违规清单。"""
-        violations: list[str] = []
-        cutoff = f"{self.issue_date}T08:00"
-        for pollutant, block in self.observations.items():
-            for t in block.get("times", []):
-                if t >= cutoff:
-                    violations.append(
-                        f"observations[{pollutant}] time {t} not before cutoff {cutoff}"
-                    )
-        # Evidence records must carry explicit availability, independent of
-        # their valid time.  A +120 h model field is legal if the forecast was
-        # published before issue; an observation acquired later is not.
-        if self.evidence:
-            from datetime import datetime, timezone
-
-            cutoff_utc = datetime.fromisoformat(self.issue_date).replace(tzinfo=timezone.utc)
-
-            def visit(value: Any, path: str) -> None:
-                if isinstance(value, dict):
-                    stamp = value.get("available_at")
-                    if stamp:
-                        text = str(stamp)
-                        parsed = datetime.fromisoformat(
-                            text[:-1] + "+00:00" if text.endswith("Z") else text)
-                        if parsed.tzinfo is None or parsed.astimezone(timezone.utc) > cutoff_utc:
-                            violations.append(f"{path}.available_at {stamp} after cutoff {cutoff_utc.isoformat()}")
-                    for key, child in value.items():
-                        visit(child, f"{path}.{key}")
-                elif isinstance(value, list):
-                    for index, child in enumerate(value):
-                        visit(child, f"{path}[{index}]")
-
-            visit(self.evidence, "evidence")
-        return violations
+        """Timezone-aware, strict issue boundary for every visible input source."""
+        from .data_contract import visible_time_violations
+        return visible_time_violations(self)

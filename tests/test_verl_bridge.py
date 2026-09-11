@@ -56,8 +56,8 @@ def test_replay_preserves_evidence_registry_until_submit(tmp_path):
         }],
         "process": {"has_event": False},
         "evidence": [{
-            "type": "observation", "claim": "起报时浓度为24",
-            "ref": "e1", "field": "/series/test/0", "value": 20.0,
+            "type": "observation", "claim": "起报前最近观测浓度为24",
+            "ref": "e1", "field": "/series/test/0", "value": 24.0,
         }],
         "confidence": "medium",
     }

@@ -90,7 +90,7 @@ async def _lifecycle(case_dir: Path, tool_config: Path) -> dict:
     agent_data.messages.append(_assistant(guidance_action, "call-guidance"))
     guidance_tool = by_name[guidance_action["name"]]
     instance, _ = await guidance_tool.create(
-        create_kwargs={"case_dir": str(case_dir)}
+        create_kwargs={"case_dir": str(case_dir), "harness_resources": environment.resource_identity}
     )
     try:
         response, reward, metrics = await guidance_tool.execute(
@@ -110,7 +110,8 @@ async def _lifecycle(case_dir: Path, tool_config: Path) -> dict:
     submit_action = scripted.act({"content": guidance_content})
     agent_data.messages.append(_assistant(submit_action, "call-submit"))
     submit_tool = by_name[submit_action["name"]]
-    instance, _ = await submit_tool.create(create_kwargs={"case_dir": str(case_dir)})
+    instance, _ = await submit_tool.create(create_kwargs={"case_dir": str(case_dir),
+                                                         "harness_resources": environment.resource_identity})
     try:
         response, reward, metrics = await submit_tool.execute(
             instance, submit_action["args"], agent_data=agent_data

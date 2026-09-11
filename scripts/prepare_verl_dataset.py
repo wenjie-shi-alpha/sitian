@@ -19,6 +19,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from sitian.agents.llm_openai import SYSTEM_PROMPT  # noqa: E402
 from sitian.case import CaseBundle  # noqa: E402
+from sitian.data_contract import valid_concentration  # noqa: E402
 from sitian.env import ForecastEnv  # noqa: E402
 from sitian.provenance import (  # noqa: E402
     case_bundle_snapshot, file_identity, score_implementation_matches,
@@ -92,8 +93,9 @@ def _row(case_dir: Path, split: str, index: int, require_evidence: bool) -> dict
     violations = bundle.audit_time_gate()
     if violations:
         raise ValueError(f"{bundle.case_id}: time gate violations: {violations[:2]}")
-    if bundle.truth_daily_full() is None:
-        raise ValueError(f"{bundle.case_id}: scoreable multi-pollutant truth missing")
+    if not all(valid_concentration((bundle.truth or {}).get("daily", {}).get(day, {}).get(key))
+               for day in bundle.forecast_dates() for key in bundle._TRUTH_KEYS):
+        raise ValueError(f"{bundle.case_id}: national training requires valid six-pollutant daily truth")
     if bundle.expert is not None or (case_dir / "expert.json").exists():
         raise ValueError(
             f"{bundle.case_id}: expert.json is forbidden in national RL inputs/reward"
@@ -109,7 +111,7 @@ def _row(case_dir: Path, split: str, index: int, require_evidence: bool) -> dict
         # External datasets remain supported with an explicit absolute path.
         case_value = str(case_dir.resolve())
     tools_kwargs = {
-        name: {"create_kwargs": {"case_dir": case_value}}
+        name: {"create_kwargs": {"case_dir": case_value, "harness_resources": env.resource_identity}}
         for name in tool_names
     }
     prompt = [
@@ -119,7 +121,7 @@ def _row(case_dir: Path, split: str, index: int, require_evidence: bool) -> dict
         )},
     ]
     return {
-        "data_source": "sitian/national_forecast_reward_v079",
+        "data_source": f"sitian/national_forecast_reward_v{reward_spec()['version']}",
         "agent_name": "sitian_tool_agent",
         "prompt": prompt,
         "ability": "multi_source_air_quality_forecast",
@@ -127,6 +129,7 @@ def _row(case_dir: Path, split: str, index: int, require_evidence: bool) -> dict
         # agent loop supplies reward_score directly from hidden ForecastEnv.
         "reward_model": {"style": "rule", "ground_truth": "FORECAST_ENV_HIDDEN_TRUTH"},
         "extra_info": {
+            "harness_resources": env.resource_identity,
             "split": split,
             "index": index,
             "case_id": bundle.case_id,
@@ -362,7 +365,7 @@ def main() -> int:
 
     manifest = {
         "artifact_type": "verl_training_dataset",
-        "dataset_version": "1.0.0",
+        "dataset_version": "2.0.0",
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "reward": reward_spec(),
         "expert_corpus_used_as_training_input": False,

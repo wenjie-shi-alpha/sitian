@@ -11,6 +11,10 @@ analysis/evidence 依赖。GPU 安装、Blackwell 实测结果与旧数据路径
 [`docs/LOCAL_SETUP.md`](docs/LOCAL_SETUP.md)。训练与推理共用独立的
 `.local/verl-upstream/.venv`；复制来的旧 `.venv-vllm` 不作为启动入口。
 
+2026-09-12 harness 能力更新：资料质量视图、方法卡检索、按污染初态与天气形势匹配的
+时间安全历史案例检索及详情，见 [`docs/HARNESS_CAPABILITIES_2026-09-12.md`](docs/HARNESS_CAPABILITIES_2026-09-12.md)。
+训练仍按 [`docs/TRAINING_HOLD_2026-09-11.md`](docs/TRAINING_HOLD_2026-09-11.md) 暂停；本轮代码及历史索引验收不代表数据重建或新训练已完成。
+
 当前专家决策需求、开放证据合同、策略使用证据、Reward 防投机与剩余门禁的可视化终审见
 [`docs/reports/expert_forecast_requirements/report.html`](docs/reports/expert_forecast_requirements/report.html)；
 逐项可追溯表见同目录 `appendix.md`。数据补齐后最终器会用正式 50×8 与真实训练冒烟自动覆盖更新。
@@ -27,8 +31,8 @@ analysis/evidence 依赖。GPU 安装、Blackwell 实测结果与旧数据路径
    只对观测真值负责，grounding 只核验工具引用而不冒充因果解释真值。
 3. **一个 episode = 一个起报时次。** agent 多步调用工具（实况/诊断/模式指导/开放形势与污染机理/昨日预报/相似个例）
    后提交，稀疏 reward。episode 规模靠全国历史回放扩展，不靠专家会商语料条数。
-4. **防泄漏是测试看护的硬约束。** truth/expert 永不通过工具暴露（`tests/test_leakage.py` 哨兵测试）；
-   实况有起报时刻门禁（`CaseBundle.audit_time_gate`）。
+4. **防泄漏是测试看护的硬约束。** 当前 case 的 truth/expert 永不通过工具暴露（`tests/test_leakage.py` 哨兵测试）；
+   实况有起报时刻门禁（`CaseBundle.audit_time_gate`）。历史案例详情仅开放独立训练索引中、当前起报前已完成验证的结果。
 
 ## Quickstart
 
@@ -61,7 +65,7 @@ FH_BASE_URL=http://127.0.0.1:8000/v1 FH_MODEL=Qwen/Qwen3-8B \
 src/sitian/
   schema.py      预报对象契约 v0.6.4：策略只提交扁平列式浓度区间；AQI 等级/首污/过程由 harness 从区间中点派生
   case.py        CaseBundle：个例数据包 IO、真值视图、时间门禁审计
-  scoring.py     reward v0.8.1：结果分量 + 可核验 grounding（标量或元组事实）；训练 composite 与公平比较用
+  scoring.py     reward v0.8.2：结果分量 + 可核验 grounding（标量或元组事实）；训练 composite 与公平比较用
                  outcome_composite 分离，硬 CSI/MAE/F1/区间分另行报告
   env.py         ForecastEnv：gym 风格多步环境，条件注册开放证据工具，步数预算，稀疏 reward
   synth.py       合成个例生成器（accumulation / clean / guidance_misleading 三剧本，seed 可复现）

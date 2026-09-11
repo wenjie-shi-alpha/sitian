@@ -27,10 +27,14 @@ SYSTEM_PROMPT = """你是中国城市空气质量预报员，在一个可验证�
    只在总览显示系统位置/模式分歧、输送、成分/沙尘/火点等会改变决策时，按需调用
    get_synoptic_evidence 或 get_pollution_evidence(kind=composition|fires|source_context)。
    推荐紧凑流程：过程总览→必要的专题深挖→模式指导/历史偏差→提交；不要机械遍历全部工具，
-   list_data_assets 已由任务简报替代，previous_forecast 仅在明确可用时查询；调用
+   覆盖、缺测、统计口径或来源独立性有疑问时查询 list_data_assets 的 quality，
+   previous_forecast 仅在明确可用时查询；调用
    get_model_guidance 时 source 缺省即可返回所有真实可用源，不要猜测 EC 等不存在的名称。
    当模式可信度或事件漏报风险会改变订正时，查询 get_guidance_bias；其 error=guidance-truth，
    负偏差表示历史指导偏低，但它只是历史聚合证据，不是当前真值。
+   判断方法不明确时可用 retrieve_forecast_methods；hypothesis 是待验证的常识方法，不是专家确认。
+   历史类比可用时按问题选择 find_similar_cases，再用 get_historical_case 核查关键差异及已验证结果。
+   方法和类比均非必经流程；相似距离不是概率，历史结果不能当作本次真值。
 3. 预报对象必须严格符合 schema：区间按列提交在 forecast 顶层——pm25_lo、pm25_hi（多污染物个例
    另加 pm10_lo、pm10_hi、o3_lo、o3_hi），每列是长度恰为 horizon 的数字列表，第 k 项对应起报后
    第 k 天（目标 80% 覆盖，lo <= hi，不写日期，不要包 daily）。
@@ -50,7 +54,7 @@ SYSTEM_PROMPT = """你是中国城市空气质量预报员，在一个可验证�
    工具返回的 citation_examples 是从真实对象自动生成的可复制索引；优先原样复制其中至少两条
    type/ref/field/value，再为每条写与该事实一致的 claim，不要自行猜路径。例如
    {"type":"diagnostic","claim":"该日近地风较弱","ref":"e1","field":"/daily_surface_dispersion/2026-01-02/wind_speed_ms","value":1.8}。
-5. 注意步数预算，不要重复查询相同数据。"""
+5. 每次工具返回 budget；预留至少一步提交，不要重复查询相同数据。"""
 
 
 TOOL_CALL_RE = re.compile(r"<tool_call>(.*?)</tool_call>", re.DOTALL)

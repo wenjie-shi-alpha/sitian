@@ -42,12 +42,16 @@ class SitianForecastTool(BaseTool):
         if configured and configured != self.name:
             raise ValueError(f"tool_name mismatch: {configured!r} != {self.name!r}")
         self._instances: dict[str, Path] = {}
+        self._expected_harness_resources = config.get("harness_resources")
 
     async def create(self, instance_id: Optional[str] = None, create_kwargs=None, **_kwargs):
         values = create_kwargs or {}
         case_dir = values.get("case_dir")
         if not case_dir:
             raise ValueError(f"{self.name}: create_kwargs.case_dir is required")
+        dataset_resources = values.get("harness_resources")
+        if self._expected_harness_resources is not None and dataset_resources != self._expected_harness_resources:
+            raise ValueError("dataset/tool-config harness resource mismatch: regenerate both from the same inputs")
         identifier = instance_id or uuid4().hex
         self._instances[identifier] = resolve_case_dir(case_dir)
         return identifier, ToolResponse()
@@ -66,6 +70,7 @@ class SitianForecastTool(BaseTool):
             messages=agent_data.messages,
             current_name=self.name,
             current_args=parameters,
+            expected_harness_resources=self._expected_harness_resources,
         )
         content = replayed.observation.get("content", {})
         terminal = replayed.done

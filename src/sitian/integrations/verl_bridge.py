@@ -74,6 +74,7 @@ def replay_current_action(
     messages: Iterable[Any],
     current_name: str,
     current_args: dict,
+    expected_harness_resources: dict | None = None,
 ) -> ReplayedStep:
     """Replay a trajectory through the real environment and return this call.
 
@@ -85,6 +86,8 @@ def replay_current_action(
     case_path = Path(case_dir).resolve()
     bundle = CaseBundle.load(case_path)
     env = ForecastEnv(bundle)
+    if expected_harness_resources is not None and env.resource_identity != expected_harness_resources:
+        raise ValueError("harness resource mismatch: regenerate dataset/tool config and align worker methods/history/bias/config")
     env.reset()
     actions = trajectory_actions(messages)
     expected = {"name": current_name, "args": current_args or {}}

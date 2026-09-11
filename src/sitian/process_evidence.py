@@ -264,7 +264,7 @@ def _trajectory(bundle) -> dict[str, dict]:
 def _observation_state(bundle) -> dict:
     from .assess import obs_trend
 
-    trends = obs_trend(bundle.observations, bundle.region)
+    trends = obs_trend(bundle.observations, bundle.region, bundle.issue_date)
     output = {}
     for pollutant, values in trends.items():
         block = bundle.observations.get(pollutant, {})

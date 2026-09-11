@@ -32,6 +32,7 @@ import numpy as np
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 from sitian.case import CaseBundle  # noqa: E402
+from sitian.meteorology import wind_direction_label  # noqa: E402
 
 RAW_OBS = REPO_ROOT / "data" / "raw" / "aq_obs" / "cities"
 CAMS_DIR = REPO_ROOT / "data" / "raw" / "cams"
@@ -219,7 +220,7 @@ class CamsStore:
             diag[k] = {
                 "wind_speed_ms": round(float(np.hypot(np.array(us), np.array(vs)).mean()), 1),
                 "wind_dir_deg": round(wdir, 0),
-                "wind_dir": "NNE ENE ESE SSE SSW WSW WNW NNW".split()[int(((wdir + 22.5) % 360) // 45)],
+                "wind_dir": wind_direction_label(round(wdir, 0)),
                 "blh_max_m": round(max(blh[lh] for lh in leads if lh in blh), 0),
                 "rh_pct": round(min(100.0, rh), 1),
                 "rain_mm": round(rain, 1),

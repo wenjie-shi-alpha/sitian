@@ -6,24 +6,22 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import statistics
 from collections import defaultdict
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import Iterable, Optional
 
 from .case import CaseBundle
+from .data_contract import (
+    CHINA_TZ as CHINA_TZ, POLLUTANT_FIELDS, TARGET_STATISTICS, finite_number, guidance_statistic, issue_time,
+    outcome_available_at, timestamp, valid_concentration, verification_available_at,
+)
 from .schema import aqi_standard_for_date, aqi_to_level, iaqi
 
-GUIDANCE_BIAS_VERSION = "1.0.0"
-CHINA_TZ = timezone(timedelta(hours=8))
-
-POLLUTANT_FIELDS = {
-    "PM2.5": ("daily_pm25", "pm25_avg"),
-    "PM10": ("daily_pm10", "pm10_avg"),
-    "O3": ("daily_o3max", "o3_8h"),
-}
+GUIDANCE_BIAS_VERSION = "2.0.0"
 
 DEFAULT_FALLBACK_TIERS = (
     ("city_season", 12),
@@ -44,20 +42,6 @@ def season(day: str | date) -> str:
     return "SON"
 
 
-def issue_time(issue_date: str) -> datetime:
-    """业务起报时刻：起报日 08:00 BJT。"""
-    return datetime.combine(date.fromisoformat(issue_date), time(8), tzinfo=CHINA_TZ)
-
-
-def verification_available_at(target_date: str, *, publication_hour: int = 12) -> datetime:
-    """无逐记录发布时间时采用的保守可验证时刻：目标日次日 12:00 BJT。
-
-    因查询使用严格小于号，D 日真值不会进入 D+1 08:00 的起报，只会从更晚起报可用。
-    """
-    target = date.fromisoformat(target_date)
-    return datetime.combine(target + timedelta(days=1), time(publication_hour), tzinfo=CHINA_TZ)
-
-
 def _event(pollutant: str, value: float, target_date: str) -> bool:
     standard = aqi_standard_for_date(target_date)
     return aqi_to_level(iaqi(pollutant, value, standard=standard)) >= 4
@@ -70,18 +54,26 @@ def records_from_bundle(bundle: CaseBundle, *, publication_hour: int = 12) -> li
     out = []
     for source, source_data in (bundle.guidance.get("sources") or {}).items():
         for pollutant, (guidance_key, truth_key) in POLLUTANT_FIELDS.items():
+            statistic, basis = guidance_statistic(source, source_data, guidance_key)
+            if statistic != TARGET_STATISTICS[pollutant]:
+                continue
             guidance_daily = source_data.get(guidance_key) or {}
             for lead, target_date in enumerate(bundle.forecast_dates(), start=1):
                 truth_record = truth_daily.get(target_date) or {}
                 if target_date not in guidance_daily or truth_key not in truth_record:
                     continue
+                if not valid_concentration(guidance_daily[target_date]) or not valid_concentration(truth_record[truth_key]):
+                    continue
                 guidance_value = float(guidance_daily[target_date])
                 truth_value = float(truth_record[truth_key])
-                available = verification_available_at(
-                    target_date, publication_hour=publication_hour
+                available = outcome_available_at(
+                    truth, target_date, publication_hour=publication_hour
                 )
                 out.append({
                     "case_id": bundle.case_id,
+                    "issue_date": bundle.issue_date,
+                    "statistic": statistic,
+                    "statistic_basis": basis,
                     "region": bundle.region,
                     "source": source,
                     "pollutant": pollutant,
@@ -102,6 +94,10 @@ def build_records(case_dirs: Iterable[str | Path], *, publication_hour: int = 12
     seen = set()
     for case_dir in case_dirs:
         bundle = CaseBundle.load(case_dir)
+        if bundle.meta.get("split") != "train":
+            raise ValueError(f"guidance bias history requires explicit train cases: {bundle.case_id}")
+        if bundle.audit_time_gate():
+            raise ValueError(f"guidance bias input time gate failed: {bundle.case_id}")
         for record in records_from_bundle(bundle, publication_hour=publication_hour):
             key = (record["case_id"], record["source"], record["pollutant"],
                    record["lead_days"], record["target_date"])
@@ -176,10 +172,29 @@ class GuidanceBiasIndex:
         if artifact.get("artifact_type") != "guidance_bias_history":
             raise ValueError("not a guidance_bias_history artifact")
         self.artifact = artifact
+        self.identity = hashlib.sha256(json.dumps(artifact, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+        self.excluded_statistics = set()
+        seen = set()
         self._by_key: dict[tuple[str, str, int], list[tuple[datetime, dict]]] = defaultdict(list)
         for raw in artifact.get("records", []):
             record = dict(raw)
-            available = datetime.fromisoformat(record["verification_available_at"])
+            pol = record["pollutant"]
+            statistic = record.get("statistic") or ("daily_mean" if pol in {"PM2.5", "PM10"} else "unknown")
+            if statistic != TARGET_STATISTICS[pol]:
+                self.excluded_statistics.add((record["source"], pol, statistic))
+                continue
+            available = timestamp(record["verification_available_at"])
+            if available < verification_available_at(record["target_date"], publication_hour=0):
+                raise ValueError("guidance bias verification precedes completed target day")
+            if not valid_concentration(record["absolute_error"]):
+                raise ValueError("invalid historical absolute error")
+            error = record["error_guidance_minus_truth"]
+            if not finite_number(error) or abs(abs(error) - record["absolute_error"]) > 1e-5:
+                raise ValueError("invalid or inconsistent historical error")
+            key = (record["case_id"], record["source"], pol, int(record["lead_days"]), record["target_date"])
+            if key in seen:
+                continue
+            seen.add(key)
             self._by_key[(record["source"], record["pollutant"],
                           int(record["lead_days"]))].append((available, record))
 
@@ -199,6 +214,8 @@ class GuidanceBiasIndex:
         fallback_tiers: tuple[tuple[str, int], ...] = DEFAULT_FALLBACK_TIERS,
     ) -> dict:
         cutoff = issue_time(issue_date)
+        if type(window_days) is not int or not 30 <= window_days <= 1095:
+            raise ValueError("window_days must be an integer in 30..1095")
         start = cutoff - timedelta(days=window_days)
         requested_keys = [key for key in sorted(self._by_key)
                           if key[2] <= horizon
@@ -210,7 +227,7 @@ class GuidanceBiasIndex:
             target_date = (date.fromisoformat(issue_date) + timedelta(days=lead)).isoformat()
             target_season = season(target_date)
             eligible = [record for available, record in self._by_key[key]
-                        if start <= available < cutoff]
+                        if start <= available < cutoff and record["target_date"] < issue_date]
             candidates = {
                 "city_season": [record for record in eligible
                                 if record["region"] == region
@@ -256,12 +273,20 @@ class GuidanceBiasIndex:
             "strict_time_gate": "verification_available_at < issue_time",
             "window_days": window_days,
             "verification_policy": self.artifact.get("verification_policy"),
+            "excluded_incomparable_statistics": [list(item) for item in sorted(self.excluded_statistics)
+                                                  if (source is None or item[0] == source)
+                                                  and (pollutant is None or item[1] == pollutant)],
             "index_provenance": self.artifact.get("provenance"),
             "series": series,
         }
 
 
 @lru_cache(maxsize=4)
+def _load_index(path: str, mtime_ns: int, size: int) -> GuidanceBiasIndex:
+    return GuidanceBiasIndex.load(path)
+
+
 def load_guidance_bias_index(path: str) -> GuidanceBiasIndex:
-    """Load and cache the immutable history index across environment episodes."""
-    return GuidanceBiasIndex.load(Path(path).resolve())
+    path = Path(path).expanduser().resolve()
+    stat = path.stat()
+    return _load_index(str(path), stat.st_mtime_ns, stat.st_size)

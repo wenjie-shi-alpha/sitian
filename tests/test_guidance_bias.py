@@ -60,8 +60,8 @@ def test_strict_time_gate_excludes_equal_cutoff_and_aggregates_prior_only():
     cutoff = issue_time("2026-01-15")
     prior = (cutoff - timedelta(days=2)).isoformat()
     equal = cutoff.isoformat()
-    records = [_record(available=prior, error=-20, truth_event=True)] * 12
-    records += [_record(available=equal, error=999)] * 12
+    records = [dict(_record(available=prior, error=-20, truth_event=True), case_id=f"past-{i}") for i in range(12)]
+    records += [dict(_record(available=equal, error=999), case_id=f"equal-{i}") for i in range(12)]
     result = GuidanceBiasIndex(_artifact(records)).query(
         region="北京", issue_date="2026-01-15", horizon=1
     )
@@ -75,8 +75,8 @@ def test_strict_time_gate_excludes_equal_cutoff_and_aggregates_prior_only():
 def test_fallback_avoids_small_city_season_sample():
     cutoff = issue_time("2026-01-15")
     prior = (cutoff - timedelta(days=2)).isoformat()
-    records = [_record(available=prior, error=-10)] * 5
-    records += [_record(available=prior, error=5, season="JJA")] * 15
+    records = [dict(_record(available=prior, error=-10), case_id=f"winter-{i}") for i in range(5)]
+    records += [dict(_record(available=prior, error=5, season="JJA"), case_id=f"summer-{i}") for i in range(15)]
     result = GuidanceBiasIndex(_artifact(records)).query(
         region="北京", issue_date="2026-01-15", horizon=1
     )

@@ -12,7 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from sitian.guidance_bias import GUIDANCE_BIAS_VERSION, build_records  # noqa: E402
-from sitian.provenance import file_identity  # noqa: E402
+from sitian.provenance import case_bundle_snapshot, file_identity  # noqa: E402
 
 DEFAULT_MANIFESTS = ["data/interim/train_without_winter_or_spatial_holdout.json"]
 
@@ -29,8 +29,11 @@ def main() -> int:
         ),
     )
     ap.add_argument("--publication-hour", type=int, default=12)
-    ap.add_argument("--out", default="data/interim/guidance_bias_history_v1.json")
+    ap.add_argument("--out", required=True, help="new artifact path; existing files are refused")
     args = ap.parse_args()
+    out = REPO_ROOT / args.out
+    if out.exists():
+        ap.error("output exists; choose a new artifact path")
 
     manifests = [REPO_ROOT / value for value in args.manifests]
     case_dirs = []
@@ -55,7 +58,11 @@ def main() -> int:
         },
         "provenance": {
             "manifests": [file_identity(path, relative_to=REPO_ROOT) for path in manifests],
+            "input_snapshot": case_bundle_snapshot(resolved, relative_to=REPO_ROOT),
             "builder": file_identity(Path(__file__), relative_to=REPO_ROOT),
+            "data_contract_implementation": file_identity(
+                REPO_ROOT / "src/sitian/data_contract.py", relative_to=REPO_ROOT
+            ),
             "implementation": file_identity(
                 REPO_ROOT / "src/sitian/guidance_bias.py", relative_to=REPO_ROOT
             ),
@@ -69,8 +76,9 @@ def main() -> int:
         },
         "records": records,
     }
-    out = REPO_ROOT / args.out
-    out.write_text(json.dumps(artifact, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open("x", encoding="utf-8") as handle:
+        json.dump(artifact, handle, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
     print(json.dumps({**artifact["summary"], "out": str(out)}, ensure_ascii=False, indent=1))
     return 0
 

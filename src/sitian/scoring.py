@@ -45,7 +45,7 @@ EVIDENCE_TOOL_MAP = {
     "model_guidance": {"get_model_guidance", "get_assessment", "get_pollution_evidence",
                        "get_guidance_bias", "get_process_evidence"},
     "previous_forecast": {"get_previous_forecast"},
-    "analog": {"find_similar_cases"},
+    "analog": {"find_similar_cases", "get_historical_case"},
     # validator 会把这些别名归一为规范类型；保留显式映射，供历史/预校验
     # Forecast 对象和 grounding 审计直接查询时使用。
     "pollution_evidence": {"get_pollution_evidence"},
@@ -54,6 +54,13 @@ EVIDENCE_TOOL_MAP = {
 }
 
 GROUNDING_SECTION_RULES = {
+    "find_similar_cases": {"analog": ("/analogs/",)},
+    "get_historical_case": {"analog": (
+        "/historical_case/issue_inputs/feature_summary/",
+        "/historical_case/issue_inputs/guidance/",
+        "/historical_case/observed_outcomes/",
+        "/historical_case/guidance_errors/",
+    )},
     "get_process_evidence": {
         "observation": ("/initial_pollution_state/",),
         "synoptic": ("/weather_trajectory_",),
@@ -106,7 +113,8 @@ TRIVIAL_GROUNDING_LEAVES = {
 # 作为格式门禁。分量定义与权重不变，但输入合同变化，旧版本分数不可直接比较。
 # v0.8.1：evidence.value 允许为标量短列表（元组事实），逐元素精确核验；
 # 部分匹配或含缺测的元组不算事实。分量与权重不变。
-REWARD_VERSION = "0.8.1"
+# v0.8.2：可验证 analog 扩展到门禁后的历史详情，限制引用到历史事实；方法卡不增加奖励。
+REWARD_VERSION = "0.8.2"
 OUTCOME_COMPONENTS = ("level", "event", "interval", "turning", "primary")
 
 
@@ -269,6 +277,16 @@ def _scalar_equal(asserted, actual) -> bool:
 
 def _field_type_allowed(tool: str, pointer: str, evidence_type: str) -> bool:
     """Constrain broad multi-view tools to the semantic section actually cited."""
+    if tool == "find_similar_cases":
+        parts = pointer.strip("/").split("/")
+        return (evidence_type == "analog" and len(parts) == 5 and parts[0] == "analogs"
+                and parts[1].isdigit() and parts[2] in {"similar_dimensions", "different_dimensions"}
+                and parts[3].isdigit() and parts[4] in {"current", "historical"})
+    if tool == "get_historical_case" and (
+        pointer.startswith("/historical_case/issue_inputs/guidance/")
+        or pointer.startswith("/historical_case/guidance_errors/")
+    ):
+        return evidence_type == "analog" and "/daily/" in pointer
     if (
         tool == "get_process_evidence"
         and evidence_type == "diagnostic"

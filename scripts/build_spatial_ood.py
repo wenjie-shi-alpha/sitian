@@ -25,7 +25,8 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from sitian.case import CaseBundle  # noqa: E402
 from sitian.provenance import file_identity  # noqa: E402
 
-STRATA = ("clean", "event", "o3", "pm10", "switch", "turning")
+STRATA = ("clean", "event", "o3", "pm10_primary", "switch", "turning")
+SPLIT_VERSION = "city-cluster-holdout-v2"
 
 
 def select_holdout_cities(
@@ -63,7 +64,10 @@ def build_train_only_regimes(
     """
     by_city: dict[str, Counter] = defaultdict(Counter)
     for row in records:
-        by_city[row["city"]][str(row.get("stratum"))] += 1
+        stratum = row.get("stratum")
+        if stratum not in STRATA:
+            raise ValueError(f"Unknown sampling stratum {stratum!r} for {row['city']}")
+        by_city[row["city"]][stratum] += 1
     cities = sorted(set(by_city) & set(coordinates) & set(city_metadata))
     if len(cities) < 8:
         raise RuntimeError("fewer than eight train-period cities available for OOD clustering")
@@ -133,8 +137,13 @@ def _records(paths: list[Path]) -> list[dict]:
 
 def _write_manifest(path: Path, records: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    def portable(case_path: Path) -> str:
+        try:
+            return case_path.resolve().relative_to(REPO_ROOT).as_posix()
+        except ValueError:
+            return str(case_path.resolve())
     path.write_text(json.dumps(
-        [str(row["path"].relative_to(REPO_ROOT)) for row in records],
+        [portable(row["path"]) for row in records],
         ensure_ascii=False, indent=1,
     ) + "\n", encoding="utf-8")
 
@@ -157,6 +166,14 @@ def main() -> int:
     parser.add_argument("--test-out", default="data/interim/spatial_ood_test.json")
     parser.add_argument("--audit-out", default="data/interim/spatial_ood_audit.json")
     args = parser.parse_args()
+
+    # Never silently replace a frozen experiment's split with a new clustering.
+    outputs = [REPO_ROOT / value for value in
+               (args.train_out, args.val_out, args.test_out, args.audit_out)]
+    if len({path.resolve() for path in outputs}) != len(outputs):
+        parser.error("output paths must be distinct")
+    if any(path.exists() for path in outputs):
+        parser.error("output already exists; choose new versioned output paths")
 
     source_paths = {
         "train_after_winter_purge": REPO_ROOT / args.train_source,
@@ -196,6 +213,14 @@ def main() -> int:
     if not retained_train or not ood_val or not ood_test:
         raise RuntimeError("spatial OOD construction produced an empty required split")
 
+    train_targets = {(row["city"], day) for row in retained_train
+                     for day in row["forecast_dates"]}
+    for name in ("winter_challenge", "val", "test"):
+        overlap = train_targets & {(row["city"], day) for row in records[name]
+                                   for day in row["forecast_dates"]}
+        if overlap:
+            raise ValueError(f"train/{name} forecast city-day overlap: {len(overlap)}")
+
     train_out, val_out, test_out = (
         REPO_ROOT / args.train_out, REPO_ROOT / args.val_out, REPO_ROOT / args.test_out
     )
@@ -209,7 +234,7 @@ def main() -> int:
                       for day in row["forecast_dates"]}
     audit = {
         "artifact_type": "spatial_ood_split_audit",
-        "split_version": "city-cluster-holdout-v1",
+        "split_version": SPLIT_VERSION,
         "selection_policy": {
             "unit": "entire city",
             "clusters": "one city from every pollution-regime cluster",
@@ -261,6 +286,7 @@ def main() -> int:
         },
     }
     out = REPO_ROOT / args.audit_out
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(audit, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(json.dumps(audit, ensure_ascii=False, indent=1))
     print(f"-> {train_out}\n-> {val_out}\n-> {test_out}\n-> {out}")

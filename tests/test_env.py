@@ -121,7 +121,8 @@ def test_unavailable_optional_tools_are_not_advertised(bundle):
     bundle.previous_forecast = {"daily": []}
     bundle.meta["analogs"] = [{"case_id": "past"}]
     names = {item["function"]["name"] for item in ForecastEnv(bundle).tool_specs("openai")}
-    assert {"get_previous_forecast", "find_similar_cases"}.issubset(names)
+    assert "get_previous_forecast" in names
+    assert "find_similar_cases" not in names  # unverified legacy metadata is not a historical index
 
 
 def test_tool_outputs_expose_legal_submission_evidence_types(bundle):
@@ -147,7 +148,7 @@ def test_guidance_bias_tool_is_time_gated_aggregate_only(bundle, tmp_path):
         records.extend({
             "case_id": f"history-{available}-{i}", "region": bundle.region,
             "source": "cams", "pollutant": "PM2.5", "lead_days": 1,
-            "target_date": bundle.forecast_dates()[0],
+            "target_date": (cutoff - timedelta(days=4)).date().isoformat(),
             "target_season": season(bundle.forecast_dates()[0]),
             "verification_available_at": available,
             "error_guidance_minus_truth": error, "absolute_error": abs(error),

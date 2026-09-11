@@ -18,7 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from sitian.case import CaseBundle  # noqa: E402
-from sitian.env import ForecastEnv  # noqa: E402
+from sitian.env import EnvConfig, ForecastEnv, HARNESS_VERSION  # noqa: E402
 
 
 def _shallow_parameters(name: str, parameters: dict) -> dict:
@@ -53,6 +53,9 @@ def main() -> int:
     parser.add_argument("--case", type=Path, default=None)
     parser.add_argument("--out", type=Path,
                         default=Path("configs/verl/sitian_tools.yaml"))
+    parser.add_argument("--historical-index", type=str,
+                        help="same FH_HISTORICAL_CASE_INDEX artifact used by rollout workers")
+    parser.add_argument("--methods", type=str, help="same FH_FORECAST_METHODS library used by rollout workers")
     args = parser.parse_args()
     if args.case is None:
         candidates = sorted((REPO_ROOT / "cases" / "national" / "val").glob("*"))
@@ -60,7 +63,12 @@ def main() -> int:
     if args.case is None:
         parser.error("no evidence-enabled national case is available; pass --case")
 
-    env = ForecastEnv(CaseBundle.load(args.case))
+    cfg = EnvConfig()
+    if args.historical_index:
+        cfg.historical_cases_path = args.historical_index
+    if args.methods:
+        cfg.forecast_methods_path = args.methods
+    env = ForecastEnv(CaseBundle.load(args.case), cfg)
     env.reset()
     tools = []
     for spec in env.tool_specs("openai"):
@@ -68,7 +76,8 @@ def main() -> int:
         name = function["name"]
         tools.append({
             "class_name": "sitian.integrations.verl_runtime.SitianForecastTool",
-            "config": {"type": "native", "tool_name": name},
+            "config": {"type": "native", "tool_name": name,
+                       "harness_resources": env.resource_identity},
             "tool_schema": {
                 "type": "function",
                 "function": {
@@ -82,6 +91,8 @@ def main() -> int:
         "contract": {
             "generator": "scripts/build_verl_tool_config.py",
             "source": "ForecastEnv.tool_specs(openai)",
+            "harness_version": HARNESS_VERSION,
+            "harness_resources": env.resource_identity,
             "note": "case-specific nested submit schema remains in the task brief and executable validator",
         },
         "tools": tools,

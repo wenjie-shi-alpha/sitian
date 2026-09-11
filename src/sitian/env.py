@@ -6,7 +6,7 @@
 - 稀疏 reward：仅在合法提交时给出综合得分；预算耗尽未提交记 0。
 - 提交不合法不终止（返回校验错误，允许重试），但消耗步数——这给 RL
   留出学习"格式自纠"的空间，同时格式最终仍是门禁。
-- truth/expert 永不通过任何工具暴露（防泄漏由 tests/test_leakage.py 看护）。
+- 当前 episode 的 truth/expert 永不通过工具暴露；独立历史索引只开放已验证的过去结果。
 """
 from __future__ import annotations
 
@@ -19,6 +19,10 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from .case import CaseBundle
+from .asset_quality import build_asset_quality
+from .analogs import load_historical_case_index
+from .forecast_methods import ForecastMethodLibrary
+from .data_contract import issue_time, observation_time, valid_concentration
 from .guidance_bias import GuidanceBiasIndex, load_guidance_bias_index
 from .process_evidence import build_process_evidence, compact_process_view
 from .schema import aqi_standard_for_date, forecast_tool_schema, forecast_format_description
@@ -27,8 +31,11 @@ from .scoring import (
     TRIVIAL_GROUNDING_LEAVES,
     RewardConfig,
     ScoreResult,
+    _field_type_allowed,
     score_forecast,
 )
+
+HARNESS_VERSION = "forecast-harness-v2.1"
 
 
 _DEFAULT_CITATION_TYPE = {
@@ -37,6 +44,7 @@ _DEFAULT_CITATION_TYPE = {
     "get_model_guidance": "model_guidance",
     "get_previous_forecast": "previous_forecast",
     "find_similar_cases": "analog",
+    "get_historical_case": "analog",
     "get_synoptic_evidence": "synoptic",
     "get_guidance_bias": "model_guidance",
     "analyze_chart": "synoptic",
@@ -95,6 +103,8 @@ def _citation_examples(tool: str, content: dict, ref: str, limit: int = 6) -> li
         if subtree is None:
             continue
         candidates = list(_scientific_scalars(subtree, prefix.rstrip("/")))
+        candidates = [(pointer, value) for pointer, value in candidates
+                      if _field_type_allowed(tool, pointer, evidence_type)]
         # Numeric measurements are easier to verify and less ambiguous than a
         # long categorical description. Keep at most two per semantic section.
         candidates.sort(key=lambda item: (not isinstance(item[1], (int, float)), len(item[0])))
@@ -127,6 +137,11 @@ class EnvConfig:
     obs_default_stride: int = 3
     reward: RewardConfig = field(default_factory=RewardConfig)
     vlm_client: Optional[Any] = None  # describe_image 用；None 时从环境变量构造
+    enable_method_retrieval: bool = field(default_factory=lambda: (
+        os.environ.get("FH_METHOD_RETRIEVAL", "1").lower() not in {"0", "false"}
+    ))
+    forecast_methods_path: Optional[str] = field(default_factory=lambda: os.environ.get("FH_FORECAST_METHODS"))
+    historical_cases_path: Optional[str] = field(default_factory=lambda: os.environ.get("FH_HISTORICAL_CASE_INDEX"))
     guidance_bias_path: Optional[str] = field(default_factory=lambda: (
         os.environ.get("FH_GUIDANCE_BIAS_INDEX") or str(
             Path(__file__).resolve().parents[2] /
@@ -137,16 +152,34 @@ class EnvConfig:
 
 class ForecastEnv:
     def __init__(self, bundle: CaseBundle, cfg: Optional[EnvConfig] = None):
+        violations = bundle.audit_time_gate()
+        if violations:
+            raise ValueError(f"input time gate failed: {violations[:3]}")
         self.bundle = bundle
         self.cfg = cfg or EnvConfig()
         self.steps_used = 0
         self.done = False
         self.transcript: list[dict] = []
+        self.methods = (ForecastMethodLibrary.load(self.cfg.forecast_methods_path)
+                        if self.cfg.enable_method_retrieval else None)
+        self.historical_cases = (load_historical_case_index(self.cfg.historical_cases_path)
+                                 if self.cfg.historical_cases_path else None)
+        self.resource_identity = {
+            "harness_version": HARNESS_VERSION,
+            "forecast_methods_sha256": self.methods.identity if self.methods else None,
+            "historical_cases_sha256": self.historical_cases.identity if self.historical_cases else None,
+        }
         self.guidance_bias: Optional[GuidanceBiasIndex] = None
         if self.cfg.guidance_bias_path:
             path = Path(self.cfg.guidance_bias_path)
             if path.is_file():
                 self.guidance_bias = load_guidance_bias_index(str(path))
+        self.resource_identity.update({
+            "guidance_bias_sha256": self.guidance_bias.identity if self.guidance_bias else None,
+            "max_steps": self.cfg.max_steps,
+            "obs_default_hours": self.cfg.obs_default_hours,
+            "obs_default_stride": self.cfg.obs_default_stride,
+        })
         self._tools: dict[str, tuple[str, dict, Callable[..., Any]]] = {}
         self._register_tools()
 
@@ -155,7 +188,7 @@ class ForecastEnv:
         b = self.bundle
         self._tools = {
             "list_data_assets": (
-                "列出本个例可用的数据资产（实况污染物/时段、诊断日期、模式指导源）。",
+                "列出数据资产及质量：逐日指导缺口、实况缺测、统计口径、发布时间是否记录、同源依赖。",
                 {"type": "object", "properties": {}},
                 self._tool_list_data_assets,
             ),
@@ -168,7 +201,7 @@ class ForecastEnv:
                                       "enum": ["PM2.5", "PM10", "O3", "SO2", "NO2", "CO"],
                                       "description": "默认 PM2.5"},
                         "region": {"type": ["string", "null"], "description": "缺省返回全部区域"},
-                        "last_hours": {"type": "integer", "description": f"默认 {self.cfg.obs_default_hours}"},
+                        "last_hours": {"type": "integer", "minimum": 1, "maximum": 168, "description": f"起报前实际小时窗口；默认 {self.cfg.obs_default_hours}"},
                         "stride": {"type": "integer", "description": f"抽稀步长小时，默认 {self.cfg.obs_default_stride}"},
                     },
                 },
@@ -218,11 +251,35 @@ class ForecastEnv:
                 {"type": "object", "properties": {}},
                 self._tool_get_previous_forecast,
             )
-        if (b.meta or {}).get("analogs"):
+        if self.methods is not None and self.methods.eligible(b.issue_date):
+            self._tools["retrieve_forecast_methods"] = (
+                "按判断问题检索预报方法卡，返回适用条件、查证工具、支持/反对信号及失效情形。"
+                "来源与审核状态显式标注；方法不是当前预报答案，不能代替数据证据。",
+                {"type": "object", "properties": {
+                    "query": {"type": "string", "description": "需要解决的判断问题，1..500字"},
+                    "top_k": {"type": "integer", "minimum": 1, "maximum": 5},
+                    "pollutant": {"type": ["string", "null"], "enum": ["PM2.5", "PM10", "O3", None]},
+                }, "required": ["query"]},
+                self._tool_retrieve_forecast_methods,
+            )
+        if self.historical_cases is not None and self.historical_cases.eligible(b):
             self._tools["find_similar_cases"] = (
-                "检索起报时已可用的相似历史个例。",
-                {"type": "object", "properties": {"top_k": {"type": "integer"}}},
+                "使用污染初态、气象和指导演变检索已验证的训练期历史过程；返回相似维度、差异与覆盖。"
+                "距离不是概率，不能直接复制历史浓度。",
+                {"type": "object", "properties": {
+                    "top_k": {"type": "integer", "minimum": 1, "maximum": 5},
+                    "pollutant": {"type": ["string", "null"], "enum": ["PM2.5", "PM10", "O3", None]},
+                    "same_region": {"type": "boolean", "description": "是否只检索目标城市，默认false"},
+                }},
                 self._tool_find_similar_cases,
+            )
+            self._tools["get_historical_case"] = (
+                "查看已验证历史个例的起报特征、指导、结果及同口径误差；按case_id查询，也执行时间门禁。",
+                {"type": "object", "properties": {
+                    "case_id": {"type": "string"},
+                    "detail": {"type": "string", "enum": ["summary", "full"], "description": "默认summary；full包含全部历史形势特征"},
+                }, "required": ["case_id"]},
+                self._tool_get_historical_case,
             )
         if b.evidence:
             self._tools["get_process_evidence"] = (
@@ -342,6 +399,8 @@ class ForecastEnv:
         self.evidence_registry: dict[str, dict] = {}
         b = self.bundle
         brief = {
+            "harness_version": HARNESS_VERSION,
+            "harness_resources": dict(self.resource_identity),
             "case_id": b.case_id,
             "issue_date": b.issue_date,
             "region": b.region,
@@ -350,7 +409,8 @@ class ForecastEnv:
             "max_steps": self.cfg.max_steps,
             "open_evidence_available": bool(b.evidence),
             "previous_forecast_available": b.previous_forecast is not None,
-            "historical_analogs_available": bool((b.meta or {}).get("analogs")),
+            "historical_analogs_available": "find_similar_cases" in self._tools,
+            "forecast_methods_available": "retrieve_forecast_methods" in self._tools,
             "aqi_standard": (
                 (b.meta or {}).get("aqi_standard")
                 or {d: aqi_standard_for_date(d) for d in b.forecast_dates()}
@@ -365,6 +425,8 @@ class ForecastEnv:
                    if b.evidence else "")
                 + "成功数据工具会返回 evidence_ref；证据引用应同时给出 ref、"
                   "指向标量事实的 JSON Pointer field 和精确 value，以便语义核验。"
+                + "资料覆盖或口径有疑问时查询 list_data_assets；按当前判断问题自主选择方法检索和历史类比，"
+                  "不要求调用全部工具。方法卡只提供查证建议，历史结果不是当前真值。预留一步提交。"
                 + ("逐日只需给出 PM2.5/PM10 日均 80% 区间与 O3_8h 日最大 80% 区间；"
                    "AQI 等级、首要污染物和 AQI>=3 污染过程由环境按 HJ 633 从区间中点派生并评分，"
                    "不需要提交。"
@@ -415,6 +477,7 @@ class ForecastEnv:
                     info["scoreable"] = False
                     reward = 0.0
                 obs = {"type": "tool_result", "name": name, "ok": True, "content": result}
+                result["budget"] = self._budget_status()
                 self.transcript.append({"event": "step", "action": action, "obs": obs, "info": info})
                 return obs, reward, True, info
             obs = {"type": "tool_result", "name": name, "ok": "error" not in (result if isinstance(result, dict) else {}),
@@ -446,6 +509,8 @@ class ForecastEnv:
         if self.steps_used >= self.cfg.max_steps:
             self.done = True
             info["reason"] = "budget_exhausted"
+        if isinstance(obs.get("content"), dict):
+            obs["content"]["budget"] = self._budget_status()
         self.transcript.append({"event": "step", "action": action, "obs": obs, "info": dict(info)})
         return obs, reward, self.done, info
 
@@ -460,6 +525,11 @@ class ForecastEnv:
         return specs
 
     # ------------------------------------------------------------------ tools
+    def _budget_status(self) -> dict:
+        remaining = max(0, self.cfg.max_steps - self.steps_used)
+        return {"steps_used": self.steps_used, "steps_remaining": remaining,
+                "queries_remaining_before_submission": max(0, remaining - 1)}
+
     def _tool_list_data_assets(self) -> dict:
         b = self.bundle
         obs_summary = {}
@@ -471,6 +541,7 @@ class ForecastEnv:
                 "regions": sorted(block.get("series", {})),
             }
         return {
+            "quality": build_asset_quality(b),
             "observations": obs_summary,
             "diagnostics_dates": sorted(b.diagnostics.get("daily", {})),
             "guidance_sources": sorted(b.guidance.get("sources", {})),
@@ -484,6 +555,12 @@ class ForecastEnv:
                 "available": self.guidance_bias is not None,
                 "aggregation_only": True,
             },
+            "forecast_methods": {"available": "retrieve_forecast_methods" in self._tools},
+            "historical_cases": {
+                "available": "find_similar_cases" in self._tools,
+                "index_configured": self.historical_cases is not None,
+                "legacy_prefilled_analogs_ignored": bool(b.meta.get("analogs")),
+            },
         }
 
     def _tool_get_observations(self, pollutant: str = "PM2.5", region: Optional[str] = None,
@@ -492,17 +569,40 @@ class ForecastEnv:
         block = b.observations.get(pollutant)
         if block is None:
             return {"error": f"no observations for {pollutant!r}", "available": sorted(b.observations)}
-        last_hours = last_hours or self.cfg.obs_default_hours
-        stride = max(1, stride or self.cfg.obs_default_stride)
-        times = block.get("times", [])[-last_hours:]
+        from datetime import timedelta
+        last_hours = self.cfg.obs_default_hours if last_hours is None else last_hours
+        stride = self.cfg.obs_default_stride if stride is None else stride
+        if type(last_hours) is not int or not 1 <= last_hours <= 168:
+            return {"error": "last_hours must be an integer in 1..168"}
+        if type(stride) is not int or not 1 <= stride <= 24:
+            return {"error": "stride must be an integer in 1..24"}
+        times = block.get("times", [])
         series = block.get("series", {})
         if region is not None and region not in series:
             return {"error": f"unknown region {region!r}", "available": sorted(series)}
         regions = [region] if region else sorted(series)
-        out_times = times[::stride]
-        out_series = {r: [series[r][-len(times):][i] for i in range(0, len(times), stride)] for r in regions}
+        if any(len(series[r]) != len(times) for r in regions):
+            return {"error": "observation time/value axes are not aligned"}
+        parsed = [observation_time(t) for t in times]
+        if len(set(parsed)) != len(parsed) or parsed != sorted(parsed):
+            return {"error": "observation timestamps must be unique and ordered"}
+        cutoff = issue_time(b.issue_date)
+        selected = []
+        last_selected = None
+        for i, stamp in enumerate(parsed):
+            if cutoff - timedelta(hours=last_hours) <= stamp < cutoff:
+                if last_selected is None or stamp - last_selected >= timedelta(hours=stride):
+                    selected.append(i)
+                    last_selected = stamp
+        out_times = [times[i] for i in selected]
+        out_series = {r: [series[r][i] if valid_concentration(series[r][i]) else None for i in selected]
+                      for r in regions}
         unit = block.get("unit") or ("mg/m³" if pollutant == "CO" else "µg/m³")
-        return {"pollutant": pollutant, "unit": unit, "times": out_times, "series": out_series}
+        return {"available": bool(selected), "pollutant": pollutant, "unit": unit,
+                "times": out_times, "series": out_series,
+                "window_start": (cutoff - timedelta(hours=last_hours)).isoformat(),
+                "window_end_exclusive": cutoff.isoformat(),
+                "sampling": f"actual timestamps; at least {stride}h between returned samples"}
 
     def _tool_get_diagnostics(self, date: Optional[str] = None) -> dict:
         daily = self.bundle.diagnostics.get("daily", {})
@@ -941,12 +1041,25 @@ class ForecastEnv:
                                "for the complete topic summary") if overview_only else None,
                 **compact}
 
-    def _tool_find_similar_cases(self, top_k: int = 3) -> dict:
-        analogs = self.bundle.meta.get("analogs")
-        if not analogs:
-            return {"available": False,
-                    "note": "相似个例索引尚未建成（roadmap: eaget 历史特征库 + 向量检索）"}
-        return {"available": True, "analogs": analogs[:top_k]}
+    def _tool_retrieve_forecast_methods(self, query: str, top_k: int = 3,
+                                        pollutant: Optional[str] = None) -> dict:
+        if self.methods is None:
+            return {"available": False}
+        return self.methods.query(query, issue_date=self.bundle.issue_date,
+                                  region=self.bundle.region, available_tools=set(self._tools),
+                                  top_k=top_k, pollutant=pollutant)
+
+    def _tool_find_similar_cases(self, top_k: int = 3, pollutant: Optional[str] = None,
+                                 same_region: bool = False) -> dict:
+        if self.historical_cases is None:
+            return {"available": False, "reason": "historical_index_not_configured"}
+        return self.historical_cases.query(self.bundle, top_k=top_k, pollutant=pollutant,
+                                           same_region=same_region)
+
+    def _tool_get_historical_case(self, case_id: str, detail: str = "summary") -> dict:
+        if self.historical_cases is None:
+            return {"available": False, "reason": "historical_index_not_configured"}
+        return self.historical_cases.get_case(self.bundle, case_id, detail=detail)
 
     def _tool_submit_forecast(self, forecast: Any = None) -> dict:
         b = self.bundle
