@@ -275,11 +275,18 @@ def _observation_state(bundle) -> dict:
 
 def _daily_weather(bundle, trajectory: dict | None = None) -> dict:
     allowed = ("wind_speed_ms", "wind_dir_deg", "wind_dir", "blh_max_m", "blh_m",
-               "rh_pct", "rain_mm", "precip_mm", "tmax_c", "cloud_pct")
+               "blh_min_m", "blh_night_min_m", "rh_pct", "rain_mm", "precip_mm", "tmax_c", "cloud_pct", "rain_status")
     output = {
         day: {key: values.get(key) for key in allowed if values.get(key) is not None}
         for day, values in sorted(bundle.diagnostics.get("daily", {}).items())
     }
+    for day, values in bundle.diagnostics.get("daily", {}).items():
+        if values.get("native_coverage"):
+            output[day]["surface_day_complete"] = all(
+                values["native_coverage"].get(name, {}).get("complete", False)
+                for name in ("blh_m", "u10_ms", "v10_ms"))
+            output[day]["aggregation_note"] = "原生离散样本汇总，非连续极值；完整性仅指模式覆盖及原生采样网格。"
+            output[day]["rain_mm"] = values.get("rain_mm")
     # Forecast days without CAMS-derived surface diagnostics (the fifth target
     # day under the previous-day 12UTC cycle) still have GFS/IFS pressure-level
     # snapshots.  Give every forecast day a row of the same shape so the policy
@@ -338,6 +345,12 @@ def _guidance(bundle) -> dict:
     missing = [day for day in forecast_dates if day not in covered]
     if missing:
         output["days_without_guidance"] = missing
+    for source, values in bundle.guidance.get("sources", {}).items():
+        if source in output and values.get("measurement_contracts"):
+            output[source]["note"] = values.get("note", "See get_model_guidance for measurement contracts")
+            for key in ("partial_daily_pm25", "partial_daily_pm10", "partial_daily_o3max"):
+                if values.get(key):
+                    output[source][key] = values[key]
     return output
 
 

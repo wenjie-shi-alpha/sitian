@@ -84,6 +84,12 @@ def daily_signals(diagnostics: dict) -> dict:
         out[d] = {"flags": flags, "wind_speed_ms": speed,
                   "wind_change_ms": round(speed - prev_speed, 1)
                   if speed is not None and prev_speed is not None else None}
+        if f.get("native_coverage"):
+            out[d]["rain_evaluable"] = finite_number(f.get("rain_mm"))
+            out[d]["surface_day_complete"] = all(
+                f["native_coverage"].get(name, {}).get("complete", False)
+                for name in ("blh_m", "u10_ms", "v10_ms"))
+            out[d]["note"] = "旗标只针对已有采样；未列出rain不等于无降水。"
         prev_speed = speed
     return out
 

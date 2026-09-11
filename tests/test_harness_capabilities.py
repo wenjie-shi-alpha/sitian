@@ -19,6 +19,19 @@ from sitian.integrations.verl_bridge import replay_current_action
 from sitian.scoring import _semantic_evidence_match
 
 
+def test_query_cache_preserves_values_and_tracks_visible_inputs():
+    index = HistoricalCaseIndex(artifact(case("2025-11-01", name="past")))
+    current = case()
+    original = index.query(current)
+    changed = index.query(current)
+    changed["analogs"][0]["similar_dimensions"][0]["historical"] = 999999
+    assert index.query(current) == original
+    current.truth["daily"][current.forecast_dates()[0]]["pm25_avg"] = 999999
+    assert index.query(current) == original
+    current.observations["PM2.5"]["series"][current.region] = [120]*24
+    assert index.query(current) != original
+
+
 def case(day="2025-12-20", *, name="current", value=40, region="test", split="train"):
     cutoff = issue_time(day)
     times = [(cutoff - timedelta(hours=h)).replace(tzinfo=None).isoformat() for h in range(24, 0, -1)]
@@ -90,7 +103,12 @@ def test_synoptic_changes_affect_ranking_when_surface_and_pollution_are_identica
     assert index.query(add_synoptic(case(), u=-10))["analogs"][0]["case_id"] == "a"
     full = index.get_case(current, "a", detail="full")["historical_case"]["issue_inputs"]
     summary = index.get_case(current, "a")["historical_case"]["issue_inputs"]
-    assert full["feature_count"] == len(full["feature_summary"])
+    second = index.get_case(current, "a", detail="full", feature_offset=full["feature_page"]["next_offset"])["historical_case"]["issue_inputs"]
+    assert not set(full["feature_summary"]) & set(second["feature_summary"])
+    assert {**full["feature_summary"], **second["feature_summary"]} == index.records["a"]["features"]
+    assert second["feature_page"]["next_offset"] is None
+    filtered = index.get_case(current, "a", detail="full", feature_prefix="meteorology/")["historical_case"]["issue_inputs"]
+    assert all(k.startswith("meteorology/") for k in filtered["feature_summary"])
     assert len(summary["feature_summary"]) < full["feature_count"]
 
 

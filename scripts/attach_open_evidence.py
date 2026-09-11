@@ -45,7 +45,13 @@ def _vector_difference(first: dict, second: dict) -> float | None:
 
 def _synoptic(document: dict, city: str, elevation_m: float | None) -> dict:
     """Attach one city while masking pressure surfaces below model terrain."""
-    result = deepcopy(document["synoptic"])
+    original = document["synoptic"]
+    # Slice the shared city maps before copying; full national documents are
+    # otherwise repeatedly duplicated for every city in the same issue cycle.
+    result = deepcopy({**original,
+        "sources": {source: [{**row, "cities": _city_map(row["cities"], city)} if "cities" in row else row
+                              for row in rows] for source, rows in original.get("sources", {}).items()},
+        "cross_model": {stamp: _city_map(cities, city) for stamp, cities in original.get("cross_model", {}).items()}})
     transport_level = lowest_pressure_level_above_terrain(elevation_m)
     valid_levels = {
         str(level): (

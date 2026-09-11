@@ -341,6 +341,10 @@ def resume_chain(args):
 
 
 def main():
+    from sitian.env import HARNESS_VERSION
+    if HARNESS_VERSION != "forecast-harness-v2.1":
+        raise SystemExit("This legacy launcher resumes the 20260911 data/checkpoints. "
+                         "Use scripts/launch_offline_training.py with a newly certified bundle and a fresh base model.")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run-id', required=True)
     parser.add_argument('--source-run', type=Path)

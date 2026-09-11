@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from .case import CaseBundle
+from .admission import publication_assessment
 from .data_contract import (
     POLLUTANT_FIELDS, guidance_statistic, issue_time, observation_time,
     valid_concentration,
@@ -43,7 +44,8 @@ def build_asset_quality(bundle: CaseBundle) -> dict:
             "statistic": block.get("statistic", "hourly_concentration"),
             "source": bundle.meta.get("obs_source", "not_recorded"),
             "available_at": block.get("available_at"),
-            "publication_status": "declared" if block.get("available_at") else "not_recorded",
+            "publication_status": publication_assessment(block, cutoff)["status"],
+            "publication": publication_assessment(block, cutoff),
             "invalid_timestamps": invalid_times,
             "duplicate_timestamps": len(valid_times) - len(set(valid_times)),
             "ordered": valid_times == sorted(valid_times),
@@ -69,6 +71,8 @@ def build_asset_quality(bundle: CaseBundle) -> dict:
             fields[pollutant] = {
                 "field": key, "available_dates": present,
                 "missing_dates": [day for day in dates if day not in present],
+                "partial_dates": sorted((block.get("partial_" + key) or {}).keys()),
+                "native_day_coverage": (block.get("day_coverage") or {}).get(key),
                 "unit": (block.get("measurement_contracts", {}).get(key) or {}).get("unit", "µg/m³"),
                 "statistic": statistic, "statistic_basis": basis,
                 "target_statistic": target_statistic,
@@ -82,7 +86,8 @@ def build_asset_quality(bundle: CaseBundle) -> dict:
                                  "source": source, "pollutant": pollutant})
         guidance[source] = {
             "cycle": block.get("cycle"), "available_at": block.get("available_at"),
-            "publication_status": "declared" if block.get("available_at") else "not_recorded",
+            "publication_status": publication_assessment(block, cutoff)["status"],
+            "publication": publication_assessment(block, cutoff),
             "dependency_group": block.get("dependency_group", source), "pollutants": fields,
         }
     diagnostic_daily = bundle.diagnostics.get("daily", {})
@@ -96,9 +101,11 @@ def build_asset_quality(bundle: CaseBundle) -> dict:
         "contract_version": "asset-quality-v1", "issue_time": cutoff.isoformat(),
         "target_dates": dates, "observations": observations, "guidance": guidance,
         "diagnostics": {
+            "native_meteorology_available": bool(bundle.diagnostics.get("native")),
+            "precipitation_note": bundle.diagnostics.get("precipitation_note"),
             "missing_dates": [day for day in dates if not diagnostic_daily.get(day)],
             "dependency_groups": dependencies,
-            "interpretation": "blh_max_m是日最大边界层高度，不能代表夜间混合层；少数气压层温差不能确定近地逆温底高和厚度。",
+            "interpretation": "blh_max_m是原生采样日最大值；blh_min_m及blh_night_min_m仅在原生资料支持时提供。少数气压层温差不能确定近地逆温底高和厚度。",
         },
         "derived_views": {
             "get_assessment": ["observations", "diagnostics", "guidance"],

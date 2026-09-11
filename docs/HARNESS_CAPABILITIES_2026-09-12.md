@@ -1,5 +1,7 @@
 # Harness v2：质量、方法与历史过程
 
+此页保留第一阶段验收记录。后续原生数据重建、v2.2工具和离线准入见[最新说明](TRAINING_READY_2026-09-12.md)。
+
 本轮实现讨论中的第一阶段。训练继续暂停；不覆盖原 case、冻结切分、旧工具 YAML、Parquet 或 checkpoint。
 当前接口版本 `forecast-harness-v2.1`，历史索引 `historical-analogs-v2`，方法卡 `forecast-methods-v1`。
 

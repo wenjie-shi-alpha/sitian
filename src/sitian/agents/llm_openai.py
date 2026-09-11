@@ -24,6 +24,9 @@ SYSTEM_PROMPT = """你是中国城市空气质量预报员，在一个可验证�
 1. 只能通过提供的工具与环境交互；最终必须调用 submit_forecast 提交结构化预报。
 2. 提交前至少查证两类证据。若任务简报显示 open_evidence_available=true，先调用
    get_process_evidence 读取六项初态、高频天气转折、逐日扩散、上游与污染指导的紧凑总览；
+   有原生气象时可用 get_native_meteorology 查询采样时序，用 compute_diffusion_conditions
+   计算10米风×边界层高度的通风代理和达阈值采样跨度；采样跨度不等于连续静稳或污染持续时间。
+   CAMS partial_daily_* 是非完整日代理，O3瞬时最大也不是8小时指标；缺测和未覆盖日期不能填零。
    只在总览显示系统位置/模式分歧、输送、成分/沙尘/火点等会改变决策时，按需调用
    get_synoptic_evidence 或 get_pollution_evidence(kind=composition|fires|source_context)。
    推荐紧凑流程：过程总览→必要的专题深挖→模式指导/历史偏差→提交；不要机械遍历全部工具，

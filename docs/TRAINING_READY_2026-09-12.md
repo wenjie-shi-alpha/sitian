@@ -1,0 +1,92 @@
+# Harness v2.2 原生数据离线训练准入
+
+按用户明确接受的**显式供数延迟假设**准备离线训练，训练保持暂停。最终准入以本机 `data/training_ready/offline_native_v3_20260912_r3/certificate.json` 及启动前完整性检查为准。
+
+`offline_training_ready`表示下述离线协议的数据、工具、奖励和运行契约通过检查；历史实际发布时间仍未核验，不表示预报技巧或优化器稳定性已经证明。
+
+## 数据与固定切分
+
+两个交付目录共49个文件均校验SHA256。原始NetCDF/GRIB和完整档案继续留在9800X3D。CAMS导出覆盖8300个请求、83260条变量序列，小时观测84644条日期/小时/污染物记录。
+
+260组重叠CAMS序列在共同时间点数值一致；选择采样更密的单一文件，保留选择记录，不拼接不同文件。
+
+重建7057个候选案例到 `data/snapshots/offline_native_v3_20260912_r2/`。其余1243个请求保持排除：752个缺少所需开放证据，另491个真值无效；不降低原有有效性阈值。核对1667930个CAMS样本、2966142个输入观测值、211710个真值和84684个日指导值，均与原生回传数据一致。合格案例的真值未发生变化；指导、诊断及观测窗口按修正后的原生时间口径重建。
+
+| 集合 | 案例数 | 用途 |
+|---|---:|---|
+| train | 3061 | 更新参数、构建历史索引 |
+| val | 781 | 时间验证 |
+| winter_selection | 344 | 冬季选择集 |
+| test | 1472 | 固定测试集 |
+| spatial_ood_val | 50 | val中的空间外推子集 |
+| spatial_ood_test | 178 | test中的空间外推子集 |
+
+成员不变，仅路径指向新快照。训练与所有保留集合的目标“城市×日期”交集为零，训练没有空间保留城市。Parquet共5886行，其中空间子集重复引用主验证/测试案例，实际独立训练/评估案例5658个。其余1399个候选案例没有进入本实验，不自动加入训练。
+
+## 已实现并接入真实数据的能力
+
+- `get_native_meteorology`：按起报相对小时查询CAMS原生风、边界层、温湿、云及降水原值，带单位、时间、循环、格点和源文件SHA256。
+- `compute_diffusion_conditions`：在共同有效时刻配对风和BLH，计算10米风速×BLH通风代理，以及可调阈值下弱风、低边界层的采样跨度。缺测打断连续样本，跨度不等于污染持续时间。
+- 逐日诊断增加BLH采样最低值、夜间最低值；过程摘要保留非完整日、降水不可计算标记。
+- 实况和上风向摘要使用实际小时窗口；缺测时不把“最近24条记录”当“最近24小时”，六小时变化需要真实对应样本。
+- 相似案例排序使用污染初态、天气形势、多层风和稳定度、边界层、模式指导、季节及地形；不使用真值或污染事件标签排序。索引含3061个训练期案例，固定验证/测试真值永不进入索引。
+- 历史完整时段真值全部达到可用时间后才能查询，直接按ID查询也执行相同门禁。历史详情返回起报特征、指导、结果和同口径误差；完整特征支持前缀筛选、分页。
+- 历史偏差索引含24921条PM2.5/PM10记录，来自CAMS、CMAQ、NAQP。CAMS瞬时O3最大值不与O3_8h真值计算同口径偏差。
+- 方法检索当前使用6张标为常识假设的方法卡。已接收JJJ_ATMO文本，但没有冒充经审阅、具备历史可用性依据的专家卡。
+
+完整天气证据按`source`和`valid_time`查询；污染证据可用`kind`及JSON Pointer `path`逐层读取，例如 `{"kind":"composition","detail":"full","path":"/aerosol/records/0"}`。超大查询返回缩小范围的建议，不截断JSON。
+
+选中子树保留原字段名和数组索引，防止把`available`、`unit`等元数据换名后作为科学事实领取grounding奖励。方法卡、计算阈值和分页元数据不增加该奖励。Harness升为v2.2，reward升为v0.8.3，数值结果评分权重未改动。
+
+## 时间假设与数据限制
+
+严格要求 `available_at < 当日08:00北京时间`，相等时排除。
+
+| 来源 | 假设可用时间 |
+|---|---|
+| CAMS | 循环后10小时 |
+| GFS / IFS | 循环后5 / 8小时 |
+| 城市小时观测 | 样本后1小时；当日07时样本不进入08时起报 |
+| CMAQ / NAQP | 循环后10小时 |
+| 历史日真值 | 目标日次日12时；类比要求整个时段完成验证 |
+| FIRMS NRT | 采集后6小时；当前汇总无法安全使用，见下文 |
+
+这些时间均为估计，不是实际发布回执。近期24小时钟表窗口最多有23个符合延迟规则的小时，质量查询展示这一缺口。
+
+1. CAMS多数地面量为6小时采样，O3为3小时。D1–D3提供完整原生网格的日估计，D4放入`partial_daily_*`，D5无污染指导，不插值、不外推。GFS/IFS仍提供后续天气时次。
+2. CAMS O3使用明确的137模式层，以固定空气密度1.2 kg/m³换算瞬时浓度代理，其日最大不等于日最大8小时均值。
+3. `tp`标为instant但缺少明确累计区间语义，保留原值、`rain_mm=null`，不再使用旧的日降水算法。
+4. GFS/IFS是已有派生证据的城市切片，本轮没有重新提取未舍入的原始GRIB值。925/850/700 hPa温度不足以识别浅薄逆温底高和厚度，地面以下层次已屏蔽。
+5. 5187例火点汇总混合近实时和事后科学处理产品，1870例纯NRT汇总时间上界落在严格供数边界，均标为不可用，没有当作“无火点”。恢复通道需要按采集时间重新筛选的原生NRT记录。
+6. 804例区域模式PM2.5从CSV重算，保持原源集合、站点城市均值及项目µg/m³单位契约；提供方README没有独立注明单位，该限制已登记。
+7. 静态背景、气候态保留既有来源标记。气候态含2025-03-31日值，最早2025-04-01起报的16例因此屏蔽该气候态。
+
+## 检查、封存与启动
+
+检查包括全量原值和切分核对、全量18次/例输入工具调用、311项回归测试、21项奖励契约检查，以及真实veRL工具生命周期、数据行身份、token预算、连续token的assistant-only mask。运行检查覆盖冬季、空间保留城市、最早无历史案例和拉萨、北京、广州；CPU检查不启动训练或优化器。
+
+新准入目录包含15种工具的注册表（早期案例按可用性开放工具）、六份Parquet、两类历史索引、方法卡、运行环境、解析后的训练配置及证书。配置为4张GPU、Qwen3-8B新基座、50步初始训练段，默认禁止恢复旧checkpoint；这50步尚未执行。
+
+```bash
+# 默认只检查，也可显式写 --check-only；不会启动训练。
+.venv/bin/python scripts/launch_offline_training.py \
+  --bundle data/training_ready/offline_native_v3_20260912_r3 --check-only
+```
+
+启动前重算案例、模型、索引、Parquet、实现、配置和审计文件的身份；任何不一致都拒绝启动。旧`run_local_training_chain.py`已阻止新harness误续跑旧数据/checkpoint。
+
+以后明确开始训练时，在新入口加`--start`。要求空checkpoint目录，并保留单次启动锁。修改数据、工具、奖励或配置后，重新生成对应资产、检查并封存。
+
+完整复现（输出必须使用新目录）：
+
+```bash
+.venv/bin/python scripts/rebuild_native_snapshot.py --raw <城市交付目录> --admission <准入交付目录> --out <新快照目录>
+.venv/bin/python scripts/audit_native_snapshot.py --snapshot <新快照目录> --raw <城市交付目录> --admission <准入交付目录> --out <新准入目录>/audits/native_snapshot.json
+.venv/bin/python scripts/audit_harness_inputs.py --manifests <新快照目录>/manifests/all.json --out <新准入目录>/audits/input_tools.json
+.venv/bin/python scripts/prepare_offline_training.py --snapshot <新快照目录> --out <新准入目录>
+.local/verl-upstream/.venv/bin/python scripts/audit_offline_runtime.py --out <新准入目录>
+.venv/bin/python scripts/audit_reward_contract.py --out <新准入目录>/audits/reward.json
+.venv/bin/python scripts/seal_offline_training.py --bundle <新准入目录>
+```
+
+数据、权重不上传Git。Git同步实现和交接说明；证书绑定本机路径，换机器需重新生成对应资产。

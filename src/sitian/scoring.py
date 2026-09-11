@@ -39,7 +39,7 @@ EVIDENCE_TOOL_MAP = {
     "observation": {"get_observations", "get_assessment", "get_pollution_evidence",
                     "get_process_evidence"},
     "diagnostic": {"get_diagnostics", "get_assessment", "get_synoptic_evidence",
-                   "get_pollution_evidence", "get_process_evidence"},
+                   "get_pollution_evidence", "get_process_evidence", "get_native_meteorology", "compute_diffusion_conditions"},
     "synoptic": {"get_diagnostics", "get_assessment", "get_synoptic_evidence",
                  "analyze_chart", "describe_image", "get_process_evidence"},
     "model_guidance": {"get_model_guidance", "get_assessment", "get_pollution_evidence",
@@ -54,6 +54,8 @@ EVIDENCE_TOOL_MAP = {
 }
 
 GROUNDING_SECTION_RULES = {
+    "get_native_meteorology": {"diagnostic": ("/series/",)},
+    "compute_diffusion_conditions": {"diagnostic": ("/samples/",)},
     "find_similar_cases": {"analog": ("/analogs/",)},
     "get_historical_case": {"analog": (
         "/historical_case/issue_inputs/feature_summary/",
@@ -81,6 +83,7 @@ GROUNDING_SECTION_RULES = {
 }
 
 TRIVIAL_GROUNDING_LEAVES = {
+    "selected_path", "surface_day_complete", "rain_evaluable", "aggregation_note",
     "available", "evidence_ref", "citation_examples", "grounding_instruction",
     "contract_version", "detail", "note", "query_note", "reason", "unit",
     "cycle", "source", "models", "n_models", "role", "valid_time",
@@ -114,7 +117,8 @@ TRIVIAL_GROUNDING_LEAVES = {
 # v0.8.1：evidence.value 允许为标量短列表（元组事实），逐元素精确核验；
 # 部分匹配或含缺测的元组不算事实。分量与权重不变。
 # v0.8.2：可验证 analog 扩展到门禁后的历史详情，限制引用到历史事实；方法卡不增加奖励。
-REWARD_VERSION = "0.8.2"
+# v0.8.3：原生气象与通风代理可引用；仅实际样本数值计分，参数/阈值/元数据不计分。
+REWARD_VERSION = "0.8.3"
 OUTCOME_COMPONENTS = ("level", "event", "interval", "turning", "primary")
 
 
@@ -277,6 +281,14 @@ def _scalar_equal(asserted, actual) -> bool:
 
 def _field_type_allowed(tool: str, pointer: str, evidence_type: str) -> bool:
     """Constrain broad multi-view tools to the semantic section actually cited."""
+    if tool == "get_native_meteorology":
+        parts = pointer.strip("/").split("/")
+        return (evidence_type == "diagnostic" and len(parts) == 5 and parts[0] == "series"
+                and parts[2] == "samples" and parts[3].isdigit() and parts[4] == "value")
+    if tool == "compute_diffusion_conditions":
+        parts = pointer.strip("/").split("/")
+        return (evidence_type == "diagnostic" and len(parts) == 3 and parts[0] == "samples"
+                and parts[1].isdigit() and parts[2] in {"wind_speed_ms", "blh_m", "ventilation_proxy_m2_s"})
     if tool == "find_similar_cases":
         parts = pointer.strip("/").split("/")
         return (evidence_type == "analog" and len(parts) == 5 and parts[0] == "analogs"

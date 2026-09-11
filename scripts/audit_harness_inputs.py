@@ -20,13 +20,15 @@ from sitian.case import CaseBundle  # noqa: E402
 from sitian.data_contract import valid_concentration  # noqa: E402
 from sitian.env import HARNESS_VERSION, EnvConfig, ForecastEnv  # noqa: E402
 from sitian.paths import resolve_case_dir  # noqa: E402
-from sitian.provenance import file_identity  # noqa: E402
+from sitian.provenance import file_identity, case_bundle_snapshot  # noqa: E402
 
 
 def audit(manifests):
     paths = sorted({str(resolve_case_dir(row)) for manifest in manifests
                     for row in json.loads(Path(manifest).read_text())})
+    snapshot_before = case_bundle_snapshot(paths, relative_to=ROOT)
     warnings, tool_calls, failures, publication_unknown = Counter(), Counter(), [], Counter()
+    maximum_response_chars = Counter()
     seen_ids = set()
     for n, path in enumerate(paths, 1):
         try:
@@ -48,9 +50,15 @@ def audit(manifests):
             env.reset()
             actions = [("list_data_assets", {}), ("get_assessment", {}), ("get_diagnostics", {}),
                        ("get_model_guidance", {}), ("get_process_evidence", {}),
-                       ("get_synoptic_evidence", {"detail": "full"}),
-                       ("get_pollution_evidence", {"detail": "full"}),
+                       ("get_native_meteorology", {}), ("compute_diffusion_conditions", {}),
+                       ("get_synoptic_evidence", {}),
+                       ("get_pollution_evidence", {}),
                        ("retrieve_forecast_methods", {"query": "污染持续 扩散条件 逆温 冷空气"})]
+            gfs = bundle.evidence.get("synoptic", {}).get("sources", {}).get("gfs", [])
+            if gfs:
+                actions.append(("get_synoptic_evidence", {"source": "gfs", "valid_time": gfs[0]["valid_time"], "detail": "full"}))
+            if bundle.evidence.get("pollution", {}).get("composition", {}).get("aerosol", {}).get("records"):
+                actions.append(("get_pollution_evidence", {"kind": "composition", "detail": "full", "path": "/aerosol/records/0"}))
             actions.extend(("get_observations", {"pollutant": p, "last_hours": 72, "stride": 1})
                            for p in bundle.observations)
             registered = {s["function"]["name"] for s in env.tool_specs("openai")}
@@ -60,14 +68,22 @@ def audit(manifests):
                 result, _, _, _ = env.step({"name": name, "args": args})
                 tool_calls[name] += 1
                 json.dumps(result, allow_nan=False)
+                size = len(json.dumps(result["content"], ensure_ascii=False, separators=(",", ":")))
+                maximum_response_chars[name] = max(maximum_response_chars[name], size)
+                if size > env.cfg.max_tool_response_chars:
+                    failures.append({"case": path, "check": name, "reason": "response_exceeds_runtime_character_budget"})
                 if not result["ok"]:
                     failures.append({"case": path, "check": name, "reason": result["content"].get("error")})
         except (ValueError, TypeError, KeyError, OSError) as exc:
             failures.append({"case": path, "check": "case_input", "reason": str(exc)})
         if n % 500 == 0:
             print(json.dumps({"processed": n, "total": len(paths), "failures": len(failures)}), flush=True)
+    if case_bundle_snapshot(paths, relative_to=ROOT) != snapshot_before:
+        failures.append({"check": "snapshot", "reason": "case files changed during audit"})
     return {"audit": "visible-input-tools-v1", "harness_version": HARNESS_VERSION,
+            "case_snapshot": snapshot_before,
             "cases": len(paths), "tool_calls": dict(tool_calls), "failures": failures,
+            "maximum_response_characters_by_tool": dict(maximum_response_chars),
             "cases_by_warning": dict(warnings), "cases_with_unknown_publication": dict(publication_unknown),
             "execution_passed": not failures, "training_started": False,
             "scope_limits": ["not a training-readiness certificate", "raw data not revalidated",

@@ -71,6 +71,17 @@ def visible_time_violations(bundle) -> list[str]:
     cutoff = issue_time(bundle.issue_date)
     violations = []
     for pollutant, block in bundle.observations.items():
+        availability = block.get("sample_available_at")
+        if availability is not None:
+            if len(availability) != len(block.get("times", [])):
+                violations.append(f"observations[{pollutant}] availability axis mismatch")
+            for raw_time, raw_available in zip(block.get("times", []), availability):
+                try:
+                    available = timestamp(raw_available)
+                    if available >= cutoff or available < observation_time(raw_time):
+                        violations.append(f"observations[{pollutant}] invalid sample availability boundary")
+                except (TypeError, ValueError):
+                    violations.append(f"observations[{pollutant}] invalid sample availability timestamp")
         for raw in block.get("times", []):
             try:
                 stamp = observation_time(raw)
@@ -100,6 +111,8 @@ def visible_time_violations(bundle) -> list[str]:
 
     for name in ("observations", "diagnostics", "guidance", "evidence", "previous_forecast"):
         visit(getattr(bundle, name), name)
+    if bundle.meta.get("climatology"):
+        visit(bundle.meta.get("climatology_provenance", {}), "climatology_provenance")
     previous = bundle.previous_forecast or {}
     if previous.get("issue_date") and previous["issue_date"] >= bundle.issue_date:
         violations.append("previous_forecast.issue_date must precede current issue_date")

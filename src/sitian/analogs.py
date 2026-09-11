@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 from copy import deepcopy
 from datetime import date, datetime, timedelta
 from functools import lru_cache
@@ -22,9 +22,10 @@ from .data_contract import (
     issue_time, outcome_available_at, verification_available_at,
 )
 
-ANALOG_VERSION = "historical-analogs-v2"
+ANALOG_VERSION = "historical-analogs-v3"
 POLLUTANT_SCALES = {"PM2.5": 50.0, "PM10": 80.0, "O3": 60.0}
 MET_SCALES = {"wind_speed_ms": 3.0, "blh_max_m": 800.0, "rh_pct": 30.0,
+              "blh_min_m": 400.0, "blh_night_min_m": 400.0,
               "rain_mm": 10.0, "tmax_c": 15.0, "cloud_pct": 40.0,
               "wind_sin": 1.0, "wind_cos": 1.0}
 
@@ -176,6 +177,7 @@ class HistoricalCaseIndex:
                 or artifact.get("split_policy") != "train_only_city_day_purged"):
             raise ValueError("unsupported or unpurged historical index")
         self.records = {}
+        self._query_cache = OrderedDict()
         self.identity = hashlib.sha256(json.dumps(artifact, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
         for row in deepcopy(artifact["records"]):
             if row.get("split") != "train" or row["case_id"] in self.records:
@@ -210,6 +212,11 @@ class HistoricalCaseIndex:
         if pollutant:
             current = {k: v for k, v in current.items()
                        if not k.startswith(("guidance/", "observation/")) or f"/{pollutant}/" in k}
+        cache_key = (bundle.case_id, bundle.issue_date, bundle.region, top_k, pollutant,
+                     same_region, tuple(sorted(current.items())))
+        if cache_key in self._query_cache:
+            self._query_cache.move_to_end(cache_key)
+            return deepcopy(self._query_cache[cache_key])
         ranked = []
         for row in self.eligible(bundle):
             if same_region and row["region"] != bundle.region:
@@ -219,23 +226,18 @@ class HistoricalCaseIndex:
             coverage = len(shared) / max(1, len(current))
             if len(shared) < 6 or coverage < 0.5 or "observation" not in groups or not groups & {"meteorology", "synoptic", "guidance"}:
                 continue
-            dimensions, distances = [], defaultdict(list)
+            distances = defaultdict(list)
             for key in shared:
                 value = row["features"][key]
                 delta = abs(current[key] - value) / _scale(key)
                 distances[key.split("/")[0]].append(min(delta, 3.0))
-                dimensions.append({"feature": key, "current": current[key], "historical": value,
-                                   "normalized_difference": round(delta, 4)})
             group_distances = {group: sum(values) / len(values) for group, values in distances.items()}
             distance = sum(group_distances.values()) / len(group_distances) + (1 - coverage)
-            dimensions.sort(key=lambda d: (d["normalized_difference"], d["feature"]))
             ranked.append((distance, row, {
                 "case_id": row["case_id"], "region": row["region"], "issue_date": row["issue_date"],
                 "verification_available_at": row["verification_available_at"],
                 "distance": round(distance, 4), "feature_coverage": round(coverage, 4),
                 "shared_features": len(shared), "group_distances": group_distances,
-                "similar_dimensions": dimensions[:4], "different_dimensions": list(reversed(dimensions[-4:])),
-                "missing_current_dimensions_in_history": sorted(current.keys() - row["features"].keys())[:12],
             }))
         ranked.sort(key=lambda item: (item[0], item[1]["case_id"]))
         selected = []
@@ -250,11 +252,17 @@ class HistoricalCaseIndex:
             )
             if duplicate:
                 continue
+            dimensions = [{"feature": key, "current": current[key], "historical": row["features"][key],
+                           "normalized_difference": round(abs(current[key]-row["features"][key])/_scale(key), 4)}
+                          for key in sorted(current.keys() & row["features"].keys())]
+            dimensions.sort(key=lambda d: (d["normalized_difference"], d["feature"]))
+            summary.update(similar_dimensions=dimensions[:4], different_dimensions=list(reversed(dimensions[-4:])),
+                           missing_current_dimensions_in_history=sorted(current.keys()-row["features"].keys())[:12])
             selected.append(summary)
             records.append(row)
             if len(selected) == top_k:
                 break
-        return {
+        result = {
             "available": bool(selected), "analogs": selected, "contract_version": ANALOG_VERSION,
             "reason": None if selected else "no_eligible_history_with_sufficient_feature_overlap",
             "ranking": "mean of group mean clipped normalized differences + missing-feature fraction; lower is closer",
@@ -262,12 +270,23 @@ class HistoricalCaseIndex:
             "limitation": "固定尺度尚未验证；距离不是概率；时间窗去重不等于已识别完整污染过程。先检查关键差异再决定是否借鉴。",
             "submission_evidence_type": "analog",
         }
+        self._query_cache[cache_key] = deepcopy(result)
+        if len(self._query_cache) > 64:
+            self._query_cache.popitem(last=False)
+        return result
 
-    def get_case(self, bundle: CaseBundle, case_id: str, *, detail: str = "summary") -> dict:
+    def get_case(self, bundle: CaseBundle, case_id: str, *, detail: str = "summary",
+                 feature_prefix: str = "", feature_offset: int = 0, feature_limit: int = 64) -> dict:
         # The same eligibility rule applies to direct id lookup. No path access,
         # no existence oracle for future or held-out records.
         if detail not in {"summary", "full"}:
             raise ValueError("detail must be summary or full")
+        if (not isinstance(feature_prefix, str) or len(feature_prefix) > 200
+                or type(feature_offset) is not int or feature_offset < 0
+                or type(feature_limit) is not int or not 1 <= feature_limit <= 64):
+            raise ValueError("invalid historical feature prefix/page")
+        if detail != "full" and (feature_prefix or feature_offset or feature_limit != 64):
+            raise ValueError("feature filtering/pagination requires detail=full")
         row = next((r for r in self.eligible(bundle) if r["case_id"] == case_id), None)
         if row is None:
             return {"available": False, "reason": "historical_case_unavailable"}
@@ -276,16 +295,22 @@ class HistoricalCaseIndex:
                     "issue_inputs", "published_forecast", "observed_outcomes", "guidance_errors")}
         counts = defaultdict(int)
         features = {}
-        for key, value in row["features"].items():
+        matching = [(k, v) for k, v in row["features"].items() if k.startswith(feature_prefix)]
+        selected = matching[feature_offset:feature_offset+feature_limit] if detail == "full" else matching
+        for key, value in selected:
             group = key.split("/")[0]
             if detail == "full" or counts[group] < 8:
                 features[key] = value
                 counts[group] += 1
         historical["issue_inputs"]["feature_summary"] = features
         historical["issue_inputs"]["feature_count"] = len(row["features"])
+        if detail == "full":
+            historical["issue_inputs"]["feature_page"] = {
+                "prefix": feature_prefix, "offset": feature_offset, "matching_features": len(matching),
+                "next_offset": feature_offset+len(selected) if feature_offset+len(selected) < len(matching) else None}
         return {"available": True, "submission_evidence_type": "analog", "detail": detail,
                 "historical_case": historical,
-                "summary_note": "summary每组最多8项特征；完整形势特征用detail=full查询，排序使用全部特征。",
+                "summary_note": "summary每组最多8项；full按feature_prefix筛选并分页（最多64项），next_offset继续。排序使用全部特征。",
                 "interpretation": "已验证历史结果，仅供类比；不是本次起报的观测或答案。"}
 
 

@@ -32,10 +32,11 @@ from .scoring import (
     RewardConfig,
     ScoreResult,
     _field_type_allowed,
+    _json_pointer,
     score_forecast,
 )
 
-HARNESS_VERSION = "forecast-harness-v2.1"
+HARNESS_VERSION = "forecast-harness-v2.2"
 
 
 _DEFAULT_CITATION_TYPE = {
@@ -64,6 +65,26 @@ def _resolve_prefix(document: dict, prefix: str):
             return None
         current = current[segment]
     return current
+
+
+def _evidence_subtree(document, pointer: str):
+    """Project a subtree while retaining original field names and list indexes.
+
+    Renaming an arbitrary selected scalar to `data` would hide metadata names
+    such as `available`/`unit` from the grounding validator.
+    """
+    parts = [part.replace("~1", "/").replace("~0", "~") for part in pointer[1:].split("/")]
+    def select(node, remaining):
+        if not remaining:
+            return deepcopy(node)
+        key, *tail = remaining
+        if isinstance(node, dict):
+            return {key: select(node[key], tail)}
+        if isinstance(node, list) and key.isdigit() and int(key) < len(node):
+            index = int(key)
+            return [None] * index + [select(node[index], tail)]
+        raise KeyError(pointer)
+    return select(document, parts)
 
 
 def _scientific_scalars(value, pointer: str):
@@ -135,6 +156,7 @@ class EnvConfig:
     max_steps: int = 12
     obs_default_hours: int = 48
     obs_default_stride: int = 3
+    max_tool_response_chars: int = 24000
     reward: RewardConfig = field(default_factory=RewardConfig)
     vlm_client: Optional[Any] = None  # describe_image 用；None 时从环境变量构造
     enable_method_retrieval: bool = field(default_factory=lambda: (
@@ -179,6 +201,7 @@ class ForecastEnv:
             "max_steps": self.cfg.max_steps,
             "obs_default_hours": self.cfg.obs_default_hours,
             "obs_default_stride": self.cfg.obs_default_stride,
+            "max_tool_response_chars": self.cfg.max_tool_response_chars,
         })
         self._tools: dict[str, tuple[str, dict, Callable[..., Any]]] = {}
         self._register_tools()
@@ -277,10 +300,30 @@ class ForecastEnv:
                 "查看已验证历史个例的起报特征、指导、结果及同口径误差；按case_id查询，也执行时间门禁。",
                 {"type": "object", "properties": {
                     "case_id": {"type": "string"},
-                    "detail": {"type": "string", "enum": ["summary", "full"], "description": "默认summary；full包含全部历史形势特征"},
+                    "detail": {"type": "string", "enum": ["summary", "full"], "description": "默认summary；full分页查询完整特征"},
+                    "feature_prefix": {"type": "string", "description": "full时可筛选特征名前缀，如meteorology/或synoptic/gfs/"},
+                    "feature_offset": {"type": "integer", "minimum": 0, "description": "full分页起点，默认0"},
+                    "feature_limit": {"type": "integer", "minimum": 1, "maximum": 64, "description": "full每页特征数，默认64"},
                 }, "required": ["case_id"]},
                 self._tool_get_historical_case,
             )
+        if b.diagnostics.get("native", {}).get("cams"):
+            from .native_meteorology import WEATHER_FIELDS, native_weather, diffusion_conditions
+            window = {"start_hour": {"type": "integer", "minimum": 0, "maximum": 143},
+                      "end_hour": {"type": "integer", "minimum": 1, "maximum": 144}}
+            self._tools["get_native_meteorology"] = (
+                "查询CAMS原生气象时间序列及来源，起报相对小时窗口[0,120)；默认BLH与10米风。保留缺测和原采样间隔。",
+                {"type": "object", "properties": {**window, "fields": {"type": "array", "minItems": 1,
+                    "maxItems": len(WEATHER_FIELDS), "uniqueItems": True,
+                    "items": {"type": "string", "enum": list(WEATHER_FIELDS)}}}},
+                lambda **args: native_weather(b, **args))
+            self._tools["compute_diffusion_conditions"] = (
+                "按原生配对样本计算10米风速×BLH通风代理和弱风低边界层采样跨度；默认风<2m/s且BLH<300m。"
+                "阈值可调整；采样跨度不能当污染持续时间，不给污染结论。",
+                {"type": "object", "properties": {**window,
+                    "weak_wind_ms": {"type": "number", "exclusiveMinimum": 0, "maximum": 20},
+                    "shallow_blh_m": {"type": "number", "exclusiveMinimum": 0, "maximum": 5000}}},
+                lambda **args: diffusion_conditions(b, **args))
         if b.evidence:
             self._tools["get_process_evidence"] = (
                 "查询起报时可见的紧凑过程总览：六项污染初态、6/12h 低层风与"
@@ -307,6 +350,8 @@ class ForecastEnv:
                 {"type": "object", "properties": {
                     "kind": {"type": ["string", "null"],
                              "description": "composition/fires/source_context；缺省返回全部"},
+                    "path": {"type": ["string", "null"],
+                             "description": "detail=full且指定kind时，在该kind内用JSON Pointer深挖，例如/aerosol/records/0或/static/target/terrain；不是文件路径"},
                     "detail": {"type": "string", "enum": ["summary", "full"],
                                "description": "默认 summary；full 返回全部数值与来源 hash"},
                 }},
@@ -465,6 +510,27 @@ class ForecastEnv:
                 result = {"error": f"bad arguments: {exc}"}
             except Exception as exc:  # 工具内部错误不炸 episode
                 result = {"error": f"tool failed: {exc}"}
+            if name != "submit_forecast" and len(json.dumps(result, ensure_ascii=False, separators=(",", ":"))) > self.cfg.max_tool_response_chars - 2000:
+                # Preserve valid JSON and an actionable query, instead of letting
+                # the runtime cut a scientific value/citation in the middle.
+                hint = {"detail": "summary"}
+                choices = {}
+                if name == "get_synoptic_evidence":
+                    sources = self.bundle.evidence.get("synoptic", {}).get("sources", {})
+                    choices = {"sources": list(sources), "valid_times": sorted({r["valid_time"] for rows in sources.values() for r in rows})}
+                    hint = {"detail": "full", "source": next(iter(sources), "gfs"), "valid_time": next(iter(choices["valid_times"]), None)}
+                elif name == "get_pollution_evidence":
+                    kind = args.get("kind") or "composition"
+                    block = self.bundle.evidence.get("pollution", {}).get(kind, {})
+                    prefix = args.get("path") or ""
+                    if prefix:
+                        block = _json_pointer(block, prefix)
+                    keys = list(block) if isinstance(block, dict) else list(range(min(len(block), 40))) if isinstance(block, list) else []
+                    choices = {"kind": kind, "paths": [prefix + "/" + _pointer_escape(str(key)) for key in keys]}
+                    hint = {"detail": "full", "kind": kind, "path": (choices["paths"] or [""])[0]}
+                result = {"available": False, "reason": "response_requires_narrower_query",
+                          "suggested_arguments": hint, "choices": choices,
+                          "note": "本次未返回数值；按source/valid_time或kind/path缩小范围，可逐层查询完整原数据。"}
             if name == "submit_forecast" and isinstance(result, dict) and result.get("accepted"):
                 score: Optional[ScoreResult] = result.pop("_score", None)
                 self.done = True
@@ -851,7 +917,7 @@ class ForecastEnv:
                          + "; pass valid_time or detail=full for 6-hourly points")}
 
     def _tool_get_pollution_evidence(self, kind: Optional[str] = None,
-                                     detail: str = "summary") -> dict:
+                                     detail: str = "summary", path: Optional[str] = None) -> dict:
         pollution = self.bundle.evidence.get("pollution", {})
         overview_only = kind is None
         if kind is not None:
@@ -861,6 +927,14 @@ class ForecastEnv:
             selected = {kind: pollution[kind]}
         else:
             selected = dict(pollution)
+        if path is not None:
+            if not kind or detail != "full" or not isinstance(path, str) or not path.startswith("/"):
+                return {"error": "path requires kind, detail=full and a JSON Pointer beginning with /"}
+            try:
+                value = _evidence_subtree(pollution[kind], path)
+            except (KeyError, IndexError, ValueError, TypeError):
+                return {"error": "unknown path within selected evidence kind"}
+            selected = {"selected_path": path, kind: value}
         if detail == "full":
             return {"contract_version": self.bundle.evidence.get("contract_version"),
                     "detail": detail,
@@ -1056,10 +1130,12 @@ class ForecastEnv:
         return self.historical_cases.query(self.bundle, top_k=top_k, pollutant=pollutant,
                                            same_region=same_region)
 
-    def _tool_get_historical_case(self, case_id: str, detail: str = "summary") -> dict:
+    def _tool_get_historical_case(self, case_id: str, detail: str = "summary", feature_prefix: str = "",
+                                 feature_offset: int = 0, feature_limit: int = 64) -> dict:
         if self.historical_cases is None:
             return {"available": False, "reason": "historical_index_not_configured"}
-        return self.historical_cases.get_case(self.bundle, case_id, detail=detail)
+        return self.historical_cases.get_case(self.bundle, case_id, detail=detail, feature_prefix=feature_prefix,
+                                             feature_offset=feature_offset, feature_limit=feature_limit)
 
     def _tool_submit_forecast(self, forecast: Any = None) -> dict:
         b = self.bundle
