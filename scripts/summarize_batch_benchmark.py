@@ -12,8 +12,9 @@ ANSI = re.compile(r'\x1b\[[0-9;]*m')
 VALUE = re.compile(r'([\w/.-]+):([-+\d.eE]+|nan|inf)(?=\s|$)')
 
 
-def read_arm(root, batch, resources):
-    arm = root / f'batch_{batch}'
+def read_arm(root, batch, resources, *, arm_name=None, target_prompts=8):
+    arm_name = arm_name or f'batch_{batch}'
+    arm = root / arm_name
     if (arm / 'exit_code').read_text().strip() != '0':
         raise ValueError(f'batch {batch} did not complete')
     steps = {}
@@ -21,7 +22,7 @@ def read_arm(root, batch, resources):
         match = re.search(r'\bstep:(\d+) - ', line)
         if match:
             steps[int(match[1])] = {key: float(value) for key, value in VALUE.findall(line)}
-    if sorted(steps) != list(range(1, 8 // batch + 1)):
+    if sorted(steps) != list(range(1, target_prompts // batch + 1)):
         raise ValueError(f'batch {batch}: missing/unexpected step metrics')
     for metrics in steps.values():
         for key in ('actor/pg_loss', 'actor/grad_norm', 'timing_s/step', 'global_seqlen/mean'):
@@ -30,11 +31,11 @@ def read_arm(root, batch, resources):
     records = [json.loads(line) for path in sorted((arm / 'rollouts').glob('*.jsonl'))
                for line in path.read_text().splitlines()]
     prompts = Counter(hashlib.sha256(row['input'].encode()).hexdigest() for row in records)
-    if len(records) != 64 or len(prompts) != 8 or set(prompts.values()) != {8}:
-        raise ValueError(f'batch {batch}: expected 8 prompts with 8 trajectories each')
+    if len(records) != target_prompts * 8 or len(prompts) != target_prompts or set(prompts.values()) != {8}:
+        raise ValueError(f'batch {batch}: expected {target_prompts} prompts with 8 trajectories each')
     seconds = sum(m['timing_s/step'] for m in steps.values())
     sequence_tokens = sum(m['global_seqlen/mean'] * 4 for m in steps.values())
-    samples = [row for row in resources if row.get('phase') == f'batch_{batch}' and 'gpus' in row]
+    samples = [row for row in resources if row.get('phase') == arm_name and 'gpus' in row]
     peak_gpu = {str(index): max(gpu['memory_mib'] for row in samples for gpu in row['gpus']
                                 if gpu['index'] == index) for index in range(4)}
     return {

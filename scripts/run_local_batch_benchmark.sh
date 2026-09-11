@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Equal-work comparison: global batch 8 x 1 step versus 4 x 2 steps.
+# Bounded equal-work comparison; each arm starts with fresh LoRA.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/local_env.sh"
 cd "${project_root}"
@@ -12,6 +12,14 @@ export CUDA_VISIBLE_DEVICES=0,1,2,3
 export SITIAN_N_GPUS=4 SITIAN_FSDP_STRATEGY=fsdp2 SITIAN_LAYERED_SUMMON=True
 export SITIAN_ROLLOUT_GPU_UTIL=0.55 SITIAN_ROLLOUT_MAX_NUM_SEQS=8 SITIAN_AGENT_WORKERS=8
 export SITIAN_ROLLOUT_N=8
+target_prompts="${SITIAN_BENCHMARK_PROMPTS:-8}"
+arm_specs="${SITIAN_BENCHMARK_ARMS:-8:8 4:8}"
+if [[ ! "${target_prompts}" =~ ^[1-9][0-9]*$ ]]; then exit 2; fi
+read -r -a arm_list <<< "${arm_specs}"
+for spec in "${arm_list[@]}"; do
+  if [[ ! "${spec}" =~ ^([1-9][0-9]*):([1-9][0-9]*)$ ]]; then exit 2; fi
+  if (( target_prompts % ${BASH_REMATCH[1]} != 0 )); then exit 2; fi
+done
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
 export HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 WANDB_MODE=disabled UV_NO_SYNC=1
 export PATH="${SITIAN_VERL_ROOT}/.venv/bin:${PATH}"
@@ -35,21 +43,37 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 "${python_bin}" scripts/evaluate_rl_skill_pilot.py --run-dir "${source_run}" --check-only
-python3 scripts/monitor_local_training.py --run-dir "${run_dir}" &
+monitor_args=()
+if [[ "${SITIAN_BENCHMARK_ROLLOUT_METRICS:-0}" == 1 ]]; then monitor_args+=(--rollout-metrics); fi
+python3 scripts/monitor_local_training.py --run-dir "${run_dir}" "${monitor_args[@]}" &
 monitor_pid=$!
 
-# Run the requested batch-8 arm first. Both arms start from fresh LoRA with
-# identical sampler/model seeds and input files, without validation or restore.
-for batch in 8 4; do
-  arm="${run_dir}/batch_${batch}"
+# Identical sampler/model seeds and input files, without validation or restore.
+for spec in "${arm_list[@]}"; do
+  batch="${spec%:*}"
+  concurrency="${spec#*:}"
+  arm_name="batch_${batch}"
+  if [[ "${SITIAN_BENCHMARK_NAMED_ARMS:-0}" == 1 ]]; then arm_name="b${batch}_s${concurrency}"; fi
+  arm="${run_dir}/${arm_name}"
   mkdir -p "${arm}"
-  printf 'batch_%s\n' "${batch}" > "${run_dir}/phase"
+  printf '%s\n' "${arm_name}" > "${run_dir}/phase"
   export SITIAN_TRAIN_BATCH_SIZE="${batch}" SITIAN_PPO_MINI_BATCH_SIZE="${batch}"
-  export SITIAN_SMOKE_STEPS="$((8 / batch))"
-  export SITIAN_EXPERIMENT_NAME="${SITIAN_BENCHMARK_ID}_batch_${batch}"
+  export SITIAN_ROLLOUT_MAX_NUM_SEQS="${concurrency}"
+  export SITIAN_SMOKE_STEPS="$((target_prompts / batch))"
+  export SITIAN_EXPERIMENT_NAME="${SITIAN_BENCHMARK_ID}_${arm_name}"
   export SITIAN_SMOKE_CKPT_DIR="${project_root}/data/checkpoints/${SITIAN_EXPERIMENT_NAME}"
   export SITIAN_SMOKE_LOG="${arm}/train.log" TENSORBOARD_DIR="${arm}/tensorboard"
   SITIAN_CONFIG_ONLY=1 bash scripts/run_verl_smoke.sh > "${arm}/resolved_config.yaml" 2> "${arm}/config.log"
+  if [[ "${SITIAN_BENCHMARK_ROLLOUT_METRICS:-0}" == 1 ]]; then
+    "${python_bin}" - "${arm}/resolved_config.yaml" <<'PY'
+import sys
+from omegaconf import OmegaConf
+path = sys.argv[1]
+config = OmegaConf.load(path)
+config.actor_rollout_ref.rollout.disable_log_stats = False
+OmegaConf.save(config, path)
+PY
+  fi
   "${python_bin}" scripts/audit_verl_runtime_contract.py --resolved-config "${arm}/resolved_config.yaml" --out "${arm}/runtime_audit.json" > "${arm}/runtime_audit.log" 2>&1
   (
     cd "${SITIAN_VERL_ROOT}"
