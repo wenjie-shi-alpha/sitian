@@ -2,6 +2,10 @@
 
 首轮运行 ID：`qwen3_8b_4gpu_20260911_r2`。
 
+2026-09-11 后续状态：按用户要求停止此 50 步任务，转为全局 batch=8 与 batch=4
+的等量短测。停止时正式任务尚在初始评估，没有正式梯度更新；两个工程 checkpoint
+及日志保留。停止记录见运行目录 `stopped_by_user.json`，不能把退出码单独当作训练完成。
+
 ## 配置
 
 - 4×RTX PRO 6000 Blackwell；NCCL 四卡 all-reduce 检查通过。
