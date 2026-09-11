@@ -1,0 +1,3 @@
+# Overlay on upstream c2429f29's frozen vllm+fsdp lock.
+# mistral-common 1.11.3 requires numpy<2.4 on Python 3.12; upstream locks 2.4.6.
+numpy==2.3.5

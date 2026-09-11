@@ -1,0 +1,19 @@
+{
+ "case_id": "synth_guidance_misleading_2025-12-19_s7",
+ "issue_date": "2025-12-19",
+ "region": "beijing",
+ "horizon": 6,
+ "regions": [
+  "baoding",
+  "beijing",
+  "langfang",
+  "shijiazhuang",
+  "tangshan",
+  "tianjin"
+ ],
+ "meta": {
+  "kind": "guidance_misleading",
+  "seed": 7,
+  "synthetic": true
+ }
+}

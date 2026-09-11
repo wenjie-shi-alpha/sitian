@@ -1,0 +1,550 @@
+{
+  "generated_at": "2026-09-07T11:45:46.438272+00:00",
+  "reward": {
+    "version": "0.8.1",
+    "schema_version": "0.6.4",
+    "config_sha256": "766b8c0b353d16ba5484f3d5fa9405f20fe2004430ab4eb5040195f91f30c78c",
+    "config": {
+      "weights": {
+        "level": 0.35,
+        "event": 0.25,
+        "interval": 0.15,
+        "turning": 0.15,
+        "evidence": 0.1,
+        "primary": 0.1,
+        "grounding": 0.05
+      },
+      "event_level": 4,
+      "process_level": 3,
+      "offby1_credit": 0.5,
+      "event_day_weight": 2.0,
+      "width_free": 30.0,
+      "width_scale": 120.0,
+      "pm10_width_free": 50.0,
+      "pm10_width_scale": 200.0,
+      "o3_width_free": 40.0,
+      "o3_width_scale": 160.0,
+      "interval_alpha": 0.2,
+      "event_near_miss_credit": 0.25,
+      "grounding_type_only_credit": 0.2,
+      "minimum_grounding_assertions": 2,
+      "minimum_grounding_types": 2
+    },
+    "outcome_components": [
+      "level",
+      "event",
+      "interval",
+      "turning",
+      "primary"
+    ],
+    "comparison_score": "outcome_composite"
+  },
+  "grain": "one target city, one issue date, five forecast days; event means any truth AQI level >= 4",
+  "profiles": {
+    "valid_train": {
+      "cases": 4804,
+      "unique_ids": 4804,
+      "cities": 120,
+      "issue_dates": 304,
+      "issue_min": "2025-04-01",
+      "issue_max": "2026-04-30",
+      "strata": {
+        "switch": 791,
+        "pm10_primary": 502,
+        "clean": 760,
+        "o3": 1199,
+        "turning": 773,
+        "event": 779
+      },
+      "truth_event_cases": 894,
+      "primary_memberships_episode_days": {
+        "O3": 10063,
+        "PM2.5": 8116,
+        "PM10": 1213,
+        "NO2": 166,
+        "CO": 1
+      },
+      "unique_forecast_city_days": 13933,
+      "missing_evidence_files": 0
+    },
+    "val": {
+      "cases": 781,
+      "unique_ids": 781,
+      "cities": 112,
+      "issue_dates": 51,
+      "issue_min": "2026-05-11",
+      "issue_max": "2026-06-30",
+      "strata": {
+        "switch": 48,
+        "clean": 115,
+        "o3": 327,
+        "pm10_primary": 78,
+        "event": 213
+      },
+      "truth_event_cases": 228,
+      "primary_memberships_episode_days": {
+        "O3": 3247,
+        "PM2.5": 71,
+        "PM10": 140
+      },
+      "unique_forecast_city_days": 2386,
+      "missing_evidence_files": 0
+    },
+    "test": {
+      "cases": 1472,
+      "unique_ids": 1472,
+      "cities": 120,
+      "issue_dates": 46,
+      "issue_min": "2026-07-07",
+      "issue_max": "2026-08-21",
+      "strata": {
+        "clean": 547,
+        "o3": 757,
+        "pm10_primary": 150,
+        "switch": 6,
+        "event": 12
+      },
+      "truth_event_cases": 27,
+      "primary_memberships_episode_days": {
+        "O3": 5451,
+        "PM10": 273,
+        "PM2.5": 16
+      },
+      "unique_forecast_city_days": 3391,
+      "missing_evidence_files": 0
+    },
+    "rl_train": {
+      "cases": 3061,
+      "unique_ids": 3061,
+      "cities": 112,
+      "issue_dates": 241,
+      "issue_min": "2025-04-01",
+      "issue_max": "2026-04-30",
+      "strata": {
+        "switch": 430,
+        "pm10_primary": 342,
+        "clean": 607,
+        "o3": 1098,
+        "turning": 267,
+        "event": 317
+      },
+      "truth_event_cases": 383,
+      "primary_memberships_episode_days": {
+        "O3": 8540,
+        "PM2.5": 2811,
+        "PM10": 831,
+        "NO2": 54,
+        "CO": 1
+      },
+      "unique_forecast_city_days": 9787,
+      "missing_evidence_files": 0
+    },
+    "winter_selection": {
+      "cases": 344,
+      "unique_ids": 344,
+      "cities": 85,
+      "issue_dates": 11,
+      "issue_min": "2025-12-26",
+      "issue_max": "2026-03-22",
+      "strata": {
+        "event": 130,
+        "turning": 146,
+        "switch": 68
+      },
+      "truth_event_cases": 137,
+      "primary_memberships_episode_days": {
+        "PM2.5": 1321,
+        "NO2": 35,
+        "O3": 106,
+        "PM10": 3
+      },
+      "unique_forecast_city_days": 1325,
+      "missing_evidence_files": 0
+    },
+    "ood_val": {
+      "cases": 50,
+      "unique_ids": 50,
+      "cities": 7,
+      "issue_dates": 32,
+      "issue_min": "2026-05-11",
+      "issue_max": "2026-06-29",
+      "strata": {
+        "o3": 17,
+        "clean": 6,
+        "pm10_primary": 11,
+        "switch": 4,
+        "event": 12
+      },
+      "truth_event_cases": 16,
+      "primary_memberships_episode_days": {
+        "O3": 196,
+        "PM2.5": 7,
+        "PM10": 25
+      },
+      "unique_forecast_city_days": 160,
+      "missing_evidence_files": 0
+    },
+    "ood_test": {
+      "cases": 178,
+      "unique_ids": 178,
+      "cities": 8,
+      "issue_dates": 46,
+      "issue_min": "2026-07-07",
+      "issue_max": "2026-08-21",
+      "strata": {
+        "o3": 85,
+        "clean": 39,
+        "pm10_primary": 49,
+        "switch": 5
+      },
+      "truth_event_cases": 15,
+      "primary_memberships_episode_days": {
+        "O3": 571,
+        "PM10": 149,
+        "PM2.5": 11
+      },
+      "unique_forecast_city_days": 299,
+      "missing_evidence_files": 0
+    }
+  },
+  "overlaps": {
+    "rl_train_vs_winter_selection": {
+      "case_ids": 0,
+      "forecast_city_days": 0,
+      "cities": 81
+    },
+    "rl_train_vs_val": {
+      "case_ids": 0,
+      "forecast_city_days": 0,
+      "cities": 105
+    },
+    "rl_train_vs_test": {
+      "case_ids": 0,
+      "forecast_city_days": 0,
+      "cities": 112
+    },
+    "rl_train_vs_ood_val": {
+      "case_ids": 0,
+      "forecast_city_days": 0,
+      "cities": 0
+    },
+    "rl_train_vs_ood_test": {
+      "case_ids": 0,
+      "forecast_city_days": 0,
+      "cities": 0
+    }
+  },
+  "dataset_input_snapshots": {
+    "train": {
+      "matches": true,
+      "cases": 3061,
+      "files": 18366,
+      "bytes": 921708078,
+      "sha256": "c47cc6266bc60748b0f44eb423c7f3609165713703ffd312d25a523b3e74ea68"
+    },
+    "val": {
+      "matches": true,
+      "cases": 781,
+      "files": 4686,
+      "bytes": 235244141,
+      "sha256": "8ee9bacd654e25381d25a1296d946004969b41d6aec52ba70e76c9859b20e895"
+    },
+    "challenge_winter": {
+      "matches": true,
+      "cases": 344,
+      "files": 2064,
+      "bytes": 106007954,
+      "sha256": "f421e1eaededa7627f8fecfbdb804209920018865d117d47ff4c2aaa4dbfaf33"
+    }
+  },
+  "parquet_identity": {
+    "train.parquet": {
+      "matches": true,
+      "rows": 3061
+    },
+    "val.parquet": {
+      "matches": true,
+      "rows": 781
+    },
+    "challenge_winter.parquet": {
+      "matches": true,
+      "rows": 344
+    },
+    "smoke_train.parquet": {
+      "matches": true,
+      "rows": 64
+    },
+    "smoke_val.parquet": {
+      "matches": true,
+      "rows": 16
+    },
+    "selection.parquet": {
+      "matches": true,
+      "rows": 1125
+    }
+  },
+  "provenance_identity": {
+    "probe_open_evidence_v079_n50_g8.json": [
+      {
+        "path": "scripts/probe_model.py",
+        "matches": true
+      },
+      {
+        "path": "src/sitian/agents/llm_openai.py",
+        "matches": true
+      },
+      {
+        "path": "src/sitian/env.py",
+        "matches": true
+      },
+      {
+        "path": "src/sitian/process_evidence.py",
+        "matches": true
+      },
+      {
+        "path": "src/sitian/guidance_bias.py",
+        "matches": true
+      },
+      {
+        "path": "src/sitian/schema.py",
+        "matches": true
+      },
+      {
+        "path": "src/sitian/scoring.py",
+        "matches": true
+      },
+      {
+        "path": "references/standards/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "data/interim/valid_cases_val.json",
+        "matches": true
+      }
+    ],
+    "eval_tabular_open_evidence_v079.json": [
+      {
+        "path": "scripts/eval_tabular_baseline.py",
+        "matches": true
+      },
+      {
+        "path": "src/sitian/hard_metrics.py",
+        "matches": true
+      },
+      {
+        "path": "src/sitian/guidance_bias.py",
+        "matches": true
+      },
+      {
+        "path": "src/sitian/splits.py",
+        "matches": true
+      },
+      {
+        "path": "src/sitian/scoring.py",
+        "matches": true
+      },
+      {
+        "path": "src/sitian/schema.py",
+        "matches": true
+      },
+      {
+        "path": "references/standards/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "data/interim/guidance_bias_history_v1.json",
+        "matches": true
+      },
+      {
+        "path": "data/interim/train_without_winter_or_spatial_holdout.json",
+        "matches": true
+      },
+      {
+        "path": "data/interim/valid_cases_val.json",
+        "matches": true
+      },
+      {
+        "path": "data/interim/valid_cases_test.json",
+        "matches": true
+      },
+      {
+        "path": "data/interim/challenge_winter.json",
+        "matches": true
+      },
+      {
+        "path": "data/interim/spatial_ood_val.json",
+        "matches": true
+      },
+      {
+        "path": "data/interim/spatial_ood_test.json",
+        "matches": true
+      }
+    ],
+    "expert_evidence_contract_audit.json": [
+      {
+        "path": "scripts/audit_expert_evidence_contract.py",
+        "matches": true
+      },
+      {
+        "path": "src/sitian/process_evidence.py",
+        "matches": true
+      },
+      {
+        "path": "src/sitian/open_evidence.py",
+        "matches": true
+      },
+      {
+        "path": "src/sitian/guidance_bias.py",
+        "matches": true
+      },
+      {
+        "path": "data/interim/valid_cases_train.json",
+        "matches": true
+      },
+      {
+        "path": "data/interim/valid_cases_val.json",
+        "matches": true
+      },
+      {
+        "path": "data/interim/valid_cases_test.json",
+        "matches": true
+      }
+    ],
+    "verl_runtime_contract.json": [
+      {
+        "path": "/root/sitian/data/interim/verl_resolved_smoke_config.yaml",
+        "matches": true
+      },
+      {
+        "path": "/root/sitian/configs/verl/sitian_tools.yaml",
+        "matches": true
+      },
+      {
+        "path": "/root/sitian/configs/verl/sitian_agent_loop.yaml",
+        "matches": true
+      },
+      {
+        "path": "/root/sitian/data/interim/valid_cases_val.json",
+        "matches": true
+      },
+      {
+        "path": "/root/sitian/src/sitian/env.py",
+        "matches": true
+      },
+      {
+        "path": "/root/sitian/src/sitian/integrations/verl_bridge.py",
+        "matches": true
+      },
+      {
+        "path": "/root/sitian/src/sitian/integrations/verl_runtime.py",
+        "matches": true
+      },
+      {
+        "path": "/root/sitian/scripts/build_verl_tool_config.py",
+        "matches": true
+      },
+      {
+        "path": "/root/sitian/scripts/audit_verl_runtime_contract.py",
+        "matches": true
+      }
+    ]
+  },
+  "raw_case_counts": {
+    "train": 5248,
+    "val": 800,
+    "test": 1500
+  },
+  "probe": {
+    "cases": 50,
+    "rollouts": 400,
+    "submitted": 389,
+    "submitted_with_void": 53,
+    "submitted_without_void": 336,
+    "no_void_submitted_fraction": 0.84,
+    "counterfactual_boundary": "Counts trajectories that used a frozen-driver retry; not a measured veRL submission rate.",
+    "usage_present": 397,
+    "max_prompt": 32653,
+    "p95_prompt": 25557,
+    "prompt_over_24000": 33,
+    "prompt_over_28000": 4,
+    "llm_calls_ge12": 9,
+    "mean_outcome_all_rollouts": 0.5291440000000001,
+    "summary": {
+      "submitted_rollouts": 389,
+      "submit_rate": 0.9725,
+      "first_submit_valid_rollouts": 380,
+      "first_submit_valid_rate": 0.95,
+      "format_evidence_grade": "confirmed",
+      "invalid_submit_attempts": 10,
+      "invalid_submit_error_counts": {
+        "evidence[5].type 'pollution' must be one of ['analog', 'diagnostic', 'expert_prior', 'model_guidance', 'observation', 'other', 'previous_forecast', 'synoptic']; accepted aliases are ['assessment', 'composition', 'pollution_evidence', 'source_context']": 1,
+        "evidence[4].type 'guidance_bias' must be one of ['analog', 'diagnostic', 'expert_prior', 'model_guidance', 'observation', 'other', 'previous_forecast', 'synoptic']; accepted aliases are ['assessment', 'composition', 'pollution_evidence', 'source_context']": 2,
+        "evidence[3].value must be a scalar, a short list of scalars, or omitted": 1,
+        "evidence[3].type 'pollution' must be one of ['analog', 'diagnostic', 'expert_prior', 'model_guidance', 'observation', 'other', 'previous_forecast', 'synoptic']; accepted aliases are ['assessment', 'composition', 'pollution_evidence', 'source_context']": 1
+      },
+      "void_turn_audit_complete": false,
+      "void_assistant_turns": 161,
+      "rollouts_with_void_turn": 61,
+      "rollout_void_turn_rate": 0.1525,
+      "mean_reward_submitted": 0.5660969151670951,
+      "mean_outcome_composite_submitted": 0.544106940874036,
+      "semantic_grounding": {
+        "verified": 1553,
+        "verifiable": 1693,
+        "rollouts_meeting_minimum": 381,
+        "full_credit_rollouts": 273,
+        "rate": 0.9173065564087419,
+        "full_credit_rollout_rate": 0.7017994858611826
+      },
+      "process_tool_use_rate": 0.9925,
+      "groups": 50,
+      "truth_event_audit_complete": true,
+      "truth_event_groups": 10,
+      "event_exposure": {
+        "definition": "truth-event groups with >=1 submitted rollout forecasting any daily AQI level >=4",
+        "event_groups": 10,
+        "groups_with_exposure": 6,
+        "group_exposure_rate": 0.6,
+        "submitted_event_rollouts": 78,
+        "rollouts_with_exposure": 12
+      },
+      "truth_event_group_definition": "complete hidden truth has at least one daily AQI level >=4; independent of mutually exclusive sampling stratum",
+      "zero_variance_tolerance": 1e-12,
+      "zero_variance_groups": 0,
+      "usable_groups_after_zero_variance_filter": 50,
+      "usable_group_rate": 1.0,
+      "valid_only_groups_with_at_least_2_submissions": 50,
+      "zero_variance_groups_valid_only": 0,
+      "usable_groups_valid_only": 50,
+      "usable_group_rate_valid_only": 1.0,
+      "mean_group_sigma_valid_only": 0.11822462428579598,
+      "event_mean_group_sigma_valid_only": 0.14803871063687435,
+      "effective_rollouts_after_zero_variance_filter": 400,
+      "effective_rollout_rate": 1.0,
+      "outcome_variable_groups_valid_only": 50,
+      "outcome_usable_group_rate_valid_only": 1.0,
+      "event_decision_groups": 10,
+      "event_decision_variable_groups_valid_only": 10,
+      "event_decision_usable_group_rate_valid_only": 1.0
+    }
+  },
+  "training_evidence": {
+    "smoke_report_exists": false,
+    "checkpoint_file_count": 0,
+    "pg_loss_log_entries": 0,
+    "sync_log_entries": 0,
+    "decode_error_entries": 87,
+    "requested_run": "phase=train steps=6 model=/root/.cache/huggingface/hub/models--Qwen--Qwen3-1.7B/snapshots/70d244cc86ccca08cf5af4e1e306ecf908b1ad5e rollout_n=8 train_batch_size=2 ppo_mini_batch_size=16 temperature=1.0"
+  },
+  "fresh_preflight": {
+    "passed": false,
+    "gates": {
+      "data_and_reward_integrity": true,
+      "format_and_trajectory": true,
+      "context_budget": true,
+      "sampling_efficiency": true,
+      "structured_evidence_grounding": true,
+      "trainable_stack_and_hardware_smoke": false
+    }
+  }
+}

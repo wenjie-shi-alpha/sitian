@@ -1,0 +1,19 @@
+{
+ "case_id": "synth_accumulation_2025-12-16_s7",
+ "issue_date": "2025-12-16",
+ "region": "beijing",
+ "horizon": 6,
+ "regions": [
+  "baoding",
+  "beijing",
+  "langfang",
+  "shijiazhuang",
+  "tangshan",
+  "tianjin"
+ ],
+ "meta": {
+  "kind": "accumulation",
+  "seed": 7,
+  "synthetic": true
+ }
+}

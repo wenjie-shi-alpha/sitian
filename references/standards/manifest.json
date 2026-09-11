@@ -1,0 +1,60 @@
+{
+ "retrieved_at": "2026-08-28",
+ "source_authority": "中华人民共和国生态环境部",
+ "documents": [
+  {
+   "standard": "HJ 633-2012",
+   "title": "环境空气质量指数（AQI）技术规定（试行）",
+   "effective_date": "2016-01-01",
+   "superseded_on": "2026-03-01",
+   "official_url": "https://www.mee.gov.cn/ywgz/fgbz/bz/bzwb/jcffbz/201203/W020250407406362045613.pdf",
+   "file": "HJ633-2012.pdf",
+   "sha256": "dfc68a7f1081307efc76174b50571cafa786925b246ed0426366462066a2903c",
+   "bytes": 398715,
+   "relevant_location": "PDF page 7 / printed page 2, Table 1",
+   "review_image": "HJ633-2012-table1-printed-page2.png",
+   "review_image_sha256": "b820c66fa2731dd05787f568f7fcf2cb811d72cb5cb1abeaf1afe7075b2ac684",
+   "implemented_claim": "IAQI=100 breakpoints: PM10=150 ug/m3 and PM2.5=75 ug/m3; AQI>50 primary pollutants are all IAQI maxima"
+  },
+  {
+   "standard": "HJ 663-2013",
+   "title": "环境空气质量评价技术规范（试行）",
+   "effective_date": "2013-10-01",
+   "superseded_on": "2026-03-01",
+   "official_url": "https://www.mee.gov.cn/ywgz/fgbz/bz/bzwb/jcffbz/201309/W020250407408679440652.pdf",
+   "file": "HJ663-2013.pdf",
+   "sha256": "20fd33b79225b9d549544b538fa1f84ee8e8d5e91183676c5cbfbe312f555f07",
+   "bytes": 324423,
+   "relevant_location": "PDF page 8 / printed page 3, section 6.1.2",
+   "review_image": "HJ663-2013-section6.1-printed-page3.png",
+   "review_image_sha256": "c627350df849cf55f9603b0f8a950d6358c31bacf7bf88897bfad97a73b8197a",
+   "implemented_claim": "O3 daily max 8-hour average needs >=14 valid 8-hour values; if fewer, result remains valid only when it exceeds the concentration limit"
+  },
+  {
+   "standard": "HJ 633-2026",
+   "title": "环境空气质量指数（AQI）技术规定",
+   "effective_date": "2026-03-01",
+   "official_url": "https://www.mee.gov.cn/ywgz/fgbz/bz/bzwb/jcffbz/202602/W020260225366493492011.pdf",
+   "file": "HJ633-2026.pdf",
+   "sha256": "a71ff69ee1d391b206fdd01ffd2dfae6b254f44b365c02c9661ddcfe343374e3",
+   "bytes": 1535294,
+   "relevant_location": "PDF page 6 / printed page 3, Table 3",
+   "review_image": "HJ633-2026-table3-printed-page3.png",
+   "review_image_sha256": "4632f032e9747186cc0ce0cdb7919beb095b4758c7518a24bb2ff89cb88e63ab",
+   "implemented_claim": "IAQI=100 breakpoints: PM10=120 ug/m3 and PM2.5=60 ug/m3"
+  },
+  {
+   "standard": "HJ 663-2026",
+   "title": "环境空气质量评价技术规范",
+   "effective_date": "2026-03-01",
+   "official_url": "https://www.mee.gov.cn/ywgz/fgbz/bz/bzwb/jcffbz/202602/W020260225383639187925.pdf",
+   "file": "HJ663-2026.pdf",
+   "sha256": "4d3e18d25c8361a04debb3e014edeb2168f66840018644db61756ac1a3bd6ee0",
+   "bytes": 2316990,
+   "relevant_location": "PDF page 6 / printed page 3, section 6.1.2",
+   "review_image": "HJ663-2026-section6.1-printed-page3.png",
+   "review_image_sha256": "a3e5f68dd4350f3f2e73f8b908aff4060fffbb382806b37cb73d861bc7a44904",
+   "implemented_claim": "O3 daily max 8-hour average needs >=14 valid 8-hour values; if fewer, result remains valid only when it exceeds the concentration limit"
+  }
+ ]
+}

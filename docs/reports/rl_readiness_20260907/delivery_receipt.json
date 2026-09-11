@@ -1,0 +1,33 @@
+{
+  "ok": true,
+  "html": "/root/sitian/docs/reports/rl_readiness_20260907/report.html",
+  "stages": {
+    "validation": "passed",
+    "package": "passed",
+    "verification": "passed"
+  },
+  "counts": {
+    "blocks": 17,
+    "charts": 1,
+    "html": 0,
+    "metrics": 0,
+    "tables": 0
+  },
+  "sourceDialog": "passed",
+  "sourceInteraction": "keyboard_menu_semantic_click",
+  "viewports": [
+    1440,
+    390
+  ],
+  "timings": {
+    "validateAndPackageMs": 1647.3,
+    "staticChartExtractionMs": 1584.5,
+    "browserRunMs": 863.9,
+    "readerReadyMs": 112.2,
+    "contentChecksMs": 32.1,
+    "sourceDialogMs": 32,
+    "responsiveChecksMs": 32.1,
+    "verificationMs": 876.6,
+    "totalMs": 2577.3
+  }
+}

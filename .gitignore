@@ -1,0 +1,55 @@
+# Credentials and machine-local configuration
+.env
+.env.*
+!.env.example
+/configs/local.env
+.cdsapirc
+*.pem
+*.key
+
+# Python environments, build products and caches
+.venv/
+.venv-*/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+
+# External runtimes, model weights and generated datasets
+/.local/
+/models/
+/data/*
+!/data/README.md
+!/data/interim/
+/data/interim/*
+!/data/interim/README.md
+/cases/*
+!/cases/README.md
+!/cases/synthetic/
+
+# Frontend dependencies and local hosting state
+node_modules/
+.vite/
+.openai/
+
+# Runtime output and editor / OS files
+*.log
+*.pid
+*.tmp
+*.tmp-*
+*.verification-failure.png
+.ipynb_checkpoints/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

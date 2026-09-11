@@ -1,0 +1,467 @@
+{
+  "id": "report:52546d56-5b00-44f4-8fce-a105001e019e",
+  "title": "LLM 微调具备进入小模型闭环验证的条件，但尚不支持直接启动 8B 长训",
+  "surface": "report",
+  "status": "reviewed-snapshot",
+  "generatedAt": "2026-09-03T02:22:57-07:00",
+  "filters": [],
+  "report": {
+    "asOf": "2026-09-03",
+    "originalQuestion": "结合 JJJ_ATMO 素材与 sitian 当前进展，验证 LLM 微调技术可行性。"
+  },
+  "queries": {
+    "project_evolution": {
+      "label": "从 JJJ_ATMO 到 sitian 的技术演进",
+      "rows": [
+        {
+          "stage": "JJJ_ATMO 数据与 SFT 原型",
+          "status": "已实现工程入口",
+          "evidence": "SFT/GRPO/LoRA 配置、数据校验与 dry-run 已具备；未发现真实训练 adapter 或训练状态产物。"
+        },
+        {
+          "stage": "领域知识资产",
+          "status": "可用于机制设计",
+          "evidence": "24 个 SFT 导出文件、272 条领域问答样本、22 个有效校验对话文件；不作为全国任务的结果真值。"
+        },
+        {
+          "stage": "sitian 可验证环境",
+          "status": "核心合同已实现",
+          "evidence": "结构化预报、工具调用、时间门禁、规则化 reward、回放与多层评测已形成。"
+        },
+        {
+          "stage": "冻结策略探针",
+          "status": "已完成 v0.8.0 证据",
+          "evidence": "Qwen3-8B-AWQ，50 case × 8 rollout；用于格式、采样与基线诊断，不代表微调后效果。"
+        },
+        {
+          "stage": "可训练闭环",
+          "status": "尚未完成",
+          "evidence": "trainable Qwen3-1.7B 与 veRL 合同已就绪，但完成快照中 training_smoke.json 缺失、正式训练步为 0。"
+        }
+      ],
+      "source": {
+        "label": "项目文档与本地训练产物盘点",
+        "files": [
+          "/root/JJJ_ATMO/README.md",
+          "/root/JJJ_ATMO/docs/PROJECT_MAIN.md",
+          "/root/JJJ_ATMO/docs/training_runbook.md",
+          "/root/sitian/README.md",
+          "/root/sitian/docs/TRAINING_DESIGN.md",
+          "/root/sitian/data/interim/rl_preflight.json"
+        ],
+        "filters": [
+          "仅使用 2026-09-03 02:22 PDT 前已完成并可复核的文件；进行中的 schema-v0.6.4 / reward-v0.8.1 探针不计入结果。"
+        ],
+        "metricDefinitions": [
+          {
+            "label": "已实现工程入口",
+            "definition": "代码、配置或 dry-run 可执行；不等价于完成真实 GPU 训练。",
+            "componentIds": [
+              "route-evolution",
+              "route-evolution-context",
+              "evidence-boundary"
+            ],
+            "sourceLineage": [
+              {
+                "files": [
+                  "/root/JJJ_ATMO/docs/training_runbook.md"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "data_assets": {
+      "label": "可用数据与隔离后的样本规模",
+      "rows": [
+        {
+          "asset": "JJJ_ATMO 领域 SFT 问答",
+          "count": 272,
+          "unit": "条",
+          "use": "术语、任务分解与机制设计"
+        },
+        {
+          "asset": "全国原始 case",
+          "count": 7548,
+          "unit": "个",
+          "use": "数据池"
+        },
+        {
+          "asset": "全国有效 case",
+          "count": 7057,
+          "unit": "个",
+          "use": "正式训练/评测清单"
+        },
+        {
+          "asset": "valid train",
+          "count": 4804,
+          "unit": "个",
+          "use": "清洗后训练候选"
+        },
+        {
+          "asset": "warm-season val",
+          "count": 781,
+          "unit": "个",
+          "use": "模型选择与常规验证"
+        },
+        {
+          "asset": "test",
+          "count": 1472,
+          "unit": "个",
+          "use": "独立终评"
+        },
+        {
+          "asset": "winter challenge",
+          "count": 344,
+          "unit": "个",
+          "use": "冬季能力守门，不作终评"
+        },
+        {
+          "asset": "最终训练 manifest",
+          "count": 3061,
+          "unit": "个",
+          "use": "剔除冬季 challenge 与 8 个 OOD 城市后"
+        },
+        {
+          "asset": "旧格式 SFT 轨迹",
+          "count": 6172,
+          "unit": "条",
+          "use": "reward-v0.4、无 thinking；不可直接用于当前合同"
+        }
+      ],
+      "source": {
+        "label": "语料盘点、SFT manifest 与 RL preflight",
+        "files": [
+          "/root/JJJ_ATMO/解压_20260807语料导出-2025年12月会商/20260807语料导出",
+          "/root/JJJ_ATMO/解压_20260807对话校验原文-2025年12月会商/20260807对话校验原文",
+          "/root/sitian/data/interim/sft_open_evidence_v04.jsonl.manifest.json",
+          "/root/sitian/data/interim/rl_preflight.json"
+        ],
+        "metricDefinitions": [
+          {
+            "label": "全国有效 case",
+            "definition": "7,548 个原始 case 中按逐小时观测有效性规则隔离 491 个后保留的 7,057 个 case。",
+            "componentIds": [
+              "data-readiness",
+              "data-readiness-context"
+            ],
+            "formula": "7548 - 491 = 7057",
+            "sourceLineage": [
+              {
+                "files": [
+                  "/root/sitian/data/interim/rl_preflight.json"
+                ]
+              }
+            ]
+          },
+          {
+            "label": "最终训练 manifest",
+            "definition": "在 valid train 基础上完成 winter challenge 的时间/目标日隔离，并整城剔除 8 个空间 OOD 城市后的训练集合。",
+            "componentIds": [
+              "data-readiness",
+              "risk-gates"
+            ],
+            "sourceLineage": [
+              {
+                "files": [
+                  "/root/sitian/data/interim/train_without_winter_or_spatial_holdout.json",
+                  "/root/sitian/data/interim/rl_preflight.json"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "readiness_gates": {
+      "label": "完成版 preflight 门禁状态",
+      "rows": [
+        {
+          "gate": "数据与 reward 完整性",
+          "status": "通过",
+          "pass": 1,
+          "evidence": "7,057 个有效 case；split、winter challenge、空间 OOD 与标准归档审计通过。"
+        },
+        {
+          "gate": "格式与轨迹",
+          "status": "未通过",
+          "pass": 0,
+          "evidence": "最终提交率 98.0%，首次合法率 93.75%<95%；void-turn 审计未完成。"
+        },
+        {
+          "gate": "上下文预算",
+          "status": "通过",
+          "pass": 1,
+          "evidence": "单次调用 prompt token 的 P95 为 25,458，低于该完成版门禁的 28,000。"
+        },
+        {
+          "gate": "采样效率",
+          "status": "通过",
+          "pass": 1,
+          "evidence": "50/50 组具有可用方差，有效组率 100%。"
+        },
+        {
+          "gate": "结构化证据 grounding",
+          "status": "通过",
+          "pass": 1,
+          "evidence": "完整 grounding rollout 率 70.41%，process 工具使用率 98.75%。"
+        },
+        {
+          "gate": "可训练栈与硬件冒烟",
+          "status": "未通过",
+          "pass": 0,
+          "evidence": "veRL 原生运行合同通过；但 training_smoke.json 不存在，50+1 步训练/恢复未验收。"
+        }
+      ],
+      "source": {
+        "label": "RL readiness preflight 2.3.0",
+        "files": [
+          "/root/sitian/data/interim/rl_preflight.json"
+        ],
+        "filters": [
+          "policy_stage=frozen_baseline",
+          "model=Qwen/Qwen3-8B-AWQ",
+          "reward=0.8.0",
+          "schema=0.6.3"
+        ],
+        "metricDefinitions": [
+          {
+            "label": "首次合法率",
+            "definition": "400 条 rollout 中第一次 submit_forecast 即通过 schema 校验的比例。",
+            "componentIds": [
+              "readiness-status",
+              "risk-gates"
+            ],
+            "sourceLineage": [
+              {
+                "files": [
+                  "/root/sitian/data/interim/probe_open_evidence_v079_n50_g8.json"
+                ]
+              }
+            ]
+          },
+          {
+            "label": "有效组率",
+            "definition": "同一 case 的 8 条 rollout 在 outcome 或训练分上保留可学习组内差异的组占比。",
+            "componentIds": [
+              "readiness-status",
+              "training-route"
+            ],
+            "sourceLineage": [
+              {
+                "files": [
+                  "/root/sitian/data/interim/probe_open_evidence_v079_n50_g8.json"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "probe_metrics": {
+      "label": "冻结 Qwen3-8B-AWQ 的可训练性诊断",
+      "rows": [
+        {
+          "metric": "最终提交率",
+          "value": 0.98,
+          "threshold": 0.95,
+          "unit": "rate",
+          "status": "通过"
+        },
+        {
+          "metric": "首次提交合法率",
+          "value": 0.9375,
+          "threshold": 0.95,
+          "unit": "rate",
+          "status": "未通过"
+        },
+        {
+          "metric": "有效组率",
+          "value": 1,
+          "threshold": 0.7,
+          "unit": "rate",
+          "status": "通过"
+        },
+        {
+          "metric": "完整 grounding rollout 率",
+          "value": 0.7040816327,
+          "threshold": 0.5,
+          "unit": "rate",
+          "status": "通过"
+        },
+        {
+          "metric": "process 工具使用率",
+          "value": 0.9875,
+          "threshold": 0.8,
+          "unit": "rate",
+          "status": "通过"
+        },
+        {
+          "metric": "含 void-turn 的 rollout 率",
+          "value": 0.1325,
+          "threshold": 0.05,
+          "unit": "rate",
+          "status": "按当前研究要求未通过"
+        }
+      ],
+      "source": {
+        "label": "50 case × 8 rollout 冻结策略探针",
+        "files": [
+          "/root/sitian/data/interim/probe_open_evidence_v079_n50_g8.json",
+          "/root/sitian/data/interim/rl_preflight.json",
+          "/root/sitian/README.md",
+          "/root/sitian/scripts/rl_preflight.py"
+        ],
+        "filters": [
+          "split=val",
+          "n_cases=50",
+          "group_size=8",
+          "temperature=1.0",
+          "thinking_enabled=true"
+        ],
+        "metricDefinitions": [
+          {
+            "label": "含 void-turn 的 rollout 率",
+            "definition": "含至少一个既没有合法工具调用也没有提交的 assistant 回合的 rollout 占比；当前研究设计要求正式探针不高于 5%。",
+            "componentIds": [
+              "probe-diagnostics",
+              "risk-gates"
+            ],
+            "sourceLineage": [
+              {
+                "files": [
+                  "/root/sitian/data/interim/probe_open_evidence_v079_n50_g8.json",
+                  "/root/sitian/README.md",
+                  "/root/sitian/scripts/rl_preflight.py"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "baseline_comparison": {
+      "label": "冻结策略与同样本基线的 outcome composite",
+      "rows": [
+        {
+          "system": "冻结 Qwen3-8B-AWQ",
+          "score": 0.535176,
+          "sample": "50 case × 8 rollout 均值"
+        },
+        {
+          "system": "CAMS 指导",
+          "score": 0.630932,
+          "sample": "同一 50 case"
+        },
+        {
+          "system": "同信息集 tabular",
+          "score": 0.683018,
+          "sample": "同一 50 case"
+        }
+      ],
+      "source": {
+        "label": "按 case 先聚合、按起报日分块 bootstrap 的配对比较",
+        "files": [
+          "/root/sitian/data/interim/compare_v079_frozen_vs_guidance.json",
+          "/root/sitian/data/interim/compare_v079_frozen_vs_tabular.json"
+        ],
+        "filters": [
+          "score_field=outcome_composite",
+          "n_cases=50",
+          "n_clusters=30",
+          "failed_rollouts_retained_as_zero=true"
+        ],
+        "metricDefinitions": [
+          {
+            "label": "outcome composite",
+            "definition": "仅由 level、event、interval、turning、primary 结果分量构成的公平比较分；排除 evidence 与 grounding。",
+            "componentIds": [
+              "baseline-gap",
+              "decision-summary"
+            ],
+            "sourceLineage": [
+              {
+                "files": [
+                  "/root/sitian/data/interim/compare_v079_frozen_vs_guidance.json",
+                  "/root/sitian/data/interim/compare_v079_frozen_vs_tabular.json"
+                ]
+              }
+            ]
+          },
+          {
+            "label": "对 CAMS 的配对差",
+            "definition": "冻结策略均值减 CAMS 均值；结果为 -0.095756，起报日分块 bootstrap 95% 区间为 [-0.169882, -0.023331]。",
+            "componentIds": [
+              "baseline-gap"
+            ],
+            "sourceLineage": [
+              {
+                "files": [
+                  "/root/sitian/data/interim/compare_v079_frozen_vs_guidance.json"
+                ]
+              }
+            ]
+          },
+          {
+            "label": "对 tabular 的配对差",
+            "definition": "冻结策略均值减同信息集 tabular 均值；结果为 -0.147842，起报日分块 bootstrap 95% 区间为 [-0.190224, -0.108625]。",
+            "componentIds": [
+              "baseline-gap"
+            ],
+            "sourceLineage": [
+              {
+                "files": [
+                  "/root/sitian/data/interim/compare_v079_frozen_vs_tabular.json"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "verification": {
+      "label": "本次报告复核",
+      "rows": [
+        {
+          "project": "JJJ_ATMO",
+          "check": "pytest tests/unit -q",
+          "passed": 53,
+          "failed": 0,
+          "note": "53 passed；另有 Pillow 弃用告警，不影响本次结果。"
+        },
+        {
+          "project": "sitian",
+          "check": "python3 -m pytest -q",
+          "passed": 202,
+          "failed": 0,
+          "note": "202 passed in 3.09s。"
+        }
+      ],
+      "source": {
+        "label": "2026-09-03 本地只读测试复核",
+        "files": [
+          "/root/JJJ_ATMO/tests/unit",
+          "/root/sitian/tests"
+        ],
+        "metricDefinitions": [
+          {
+            "label": "通过测试数",
+            "definition": "本次报告生成期间实际执行 pytest 得到的通过用例数；用于说明工程回归状态，不代表模型效果。",
+            "componentIds": [
+              "engineering-verification"
+            ],
+            "sourceLineage": [
+              {
+                "files": [
+                  "/root/JJJ_ATMO/tests/unit",
+                  "/root/sitian/tests"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

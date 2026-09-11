@@ -1,0 +1,94 @@
+{
+ "daily": {
+  "2025-12-17": {
+   "synoptic": "高压后部转均压场，偏南风山前辐合",
+   "wind_dir": "S",
+   "wind_speed_ms": 1.8,
+   "inversion": "weak",
+   "blh_m": 700,
+   "rh_pct": 65,
+   "precip_mm": 0.0,
+   "transport": "southwest_channel"
+  },
+  "2025-12-18": {
+   "synoptic": "高压后部转均压场，偏南风山前辐合",
+   "wind_dir": "S",
+   "wind_speed_ms": 1.8,
+   "inversion": "weak",
+   "blh_m": 700,
+   "rh_pct": 65,
+   "precip_mm": 0.0,
+   "transport": "southwest_channel"
+  },
+  "2025-12-19": {
+   "synoptic": "高压后部转均压场，偏南风山前辐合",
+   "wind_dir": "S",
+   "wind_speed_ms": 1.8,
+   "inversion": "weak",
+   "blh_m": 700,
+   "rh_pct": 65,
+   "precip_mm": 0.0,
+   "transport": "southwest_channel"
+  },
+  "2025-12-20": {
+   "synoptic": "低压前部，静稳高湿",
+   "wind_dir": "S",
+   "wind_speed_ms": 1.2,
+   "inversion": "strong",
+   "blh_m": 300,
+   "rh_pct": 80,
+   "precip_mm": 0.0,
+   "transport": "southwest_channel"
+  },
+  "2025-12-21": {
+   "synoptic": "低压前部，静稳高湿",
+   "wind_dir": "S",
+   "wind_speed_ms": 1.2,
+   "inversion": "strong",
+   "blh_m": 300,
+   "rh_pct": 80,
+   "precip_mm": 0.0,
+   "transport": "southwest_channel"
+  },
+  "2025-12-22": {
+   "synoptic": "低压前部，静稳高湿",
+   "wind_dir": "S",
+   "wind_speed_ms": 1.2,
+   "inversion": "strong",
+   "blh_m": 300,
+   "rh_pct": 80,
+   "precip_mm": 0.0,
+   "transport": "none"
+  },
+  "2025-12-23": {
+   "synoptic": "冷空气过境，转西北风清除",
+   "wind_dir": "NW",
+   "wind_speed_ms": 5.0,
+   "inversion": "strong",
+   "blh_m": 300,
+   "rh_pct": 80,
+   "precip_mm": 1.5,
+   "transport": "none"
+  },
+  "2025-12-24": {
+   "synoptic": "高压控制，扩散条件有利",
+   "wind_dir": "NW",
+   "wind_speed_ms": 4.0,
+   "inversion": "none",
+   "blh_m": 1300,
+   "rh_pct": 45,
+   "precip_mm": 0.0,
+   "transport": "none"
+  },
+  "2025-12-25": {
+   "synoptic": "高压控制，扩散条件有利",
+   "wind_dir": "NW",
+   "wind_speed_ms": 4.0,
+   "inversion": "none",
+   "blh_m": 1300,
+   "rh_pct": 45,
+   "precip_mm": 0.0,
+   "transport": "none"
+  }
+ }
+}

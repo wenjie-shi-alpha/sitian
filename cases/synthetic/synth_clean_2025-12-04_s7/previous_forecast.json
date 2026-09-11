@@ -1,0 +1,63 @@
+{
+ "issue_date": "2025-12-03",
+ "region": "beijing",
+ "daily": [
+  {
+   "date": "2025-12-04",
+   "aqi_level": 1,
+   "pm25_range": [
+    22,
+    45
+   ],
+   "primary_pollutant": "PM2.5"
+  },
+  {
+   "date": "2025-12-05",
+   "aqi_level": 1,
+   "pm25_range": [
+    16,
+    37
+   ],
+   "primary_pollutant": "PM2.5"
+  },
+  {
+   "date": "2025-12-06",
+   "aqi_level": 2,
+   "pm25_range": [
+    27,
+    53
+   ],
+   "primary_pollutant": "PM2.5"
+  },
+  {
+   "date": "2025-12-07",
+   "aqi_level": 2,
+   "pm25_range": [
+    26,
+    51
+   ],
+   "primary_pollutant": "PM2.5"
+  },
+  {
+   "date": "2025-12-08",
+   "aqi_level": 1,
+   "pm25_range": [
+    20,
+    43
+   ],
+   "primary_pollutant": "PM2.5"
+  },
+  {
+   "date": "2025-12-09",
+   "aqi_level": 2,
+   "pm25_range": [
+    28,
+    55
+   ],
+   "primary_pollutant": "PM2.5"
+  }
+ ],
+ "process": null,
+ "evidence": [],
+ "confidence": "medium"
+}

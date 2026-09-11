@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sitian"
+version = "0.1.0"
+description = "Verifiable environment (harness) for JJJ air-quality forecast agents: case bundles, tools, scoring, RL reward"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.4",
+  "ruff>=0.3",
+  "PyYAML>=6",
+]
+imaging = [
+  "Pillow>=10",
+  "numpy>=1.24",
+]
+evidence = [
+  "requests>=2.31",
+  "numpy>=1.24",
+  "xarray>=2024.1",
+  "netCDF4>=1.6",
+  "cfgrib>=0.9.14",
+  "pygrib>=2.1",
+  "eccodes>=2.35",
+  # Explicit native wheels: eccodes metadata differs between wheel platforms.
+  "eccodeslib>=2.48; sys_platform == 'linux'",
+  "rasterio>=1.4",
+  "cdsapi>=0.7",
+  "ecmwf-datastores-client>=0.4",
+  "earthengine-api>=1.7",
+]
+analysis = [
+  "numpy>=1.24",
+  "scikit-learn>=1.4",
+  "lightgbm>=4.0",
+  "xgboost>=2.0",
+  "pyarrow>=14",
+]
+
+[project.scripts]
+fh = "sitian.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
