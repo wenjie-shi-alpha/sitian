@@ -94,3 +94,23 @@ def test_export_writes_traceable_native_series_and_reports_missing_inputs(tmp_pa
         assert identity(out / item["path"].split("/")[-1])["sha256"] == item["sha256"]
     with pytest.raises(FileExistsError):
         export(request, cams, obs, out)
+
+
+def test_overlaps_are_preserved_only_by_explicit_policy(tmp_path):
+    cams = tmp_path / "cams"
+    cams.mkdir()
+    write_netcdf(cams / "o3_2025-01-01_2025-01-02.nc")
+    write_netcdf(cams / "o3_2025-01-02_2025-01-02.nc")
+    request = tmp_path / "request.json"
+    request.write_text(json.dumps({"cases": [{"city": "北京", "issue_date": "2025-01-03"}],
+                                   "coordinates": {"北京": [40, 116]}}))
+    rejected = export(request, cams, None, tmp_path / "reject")
+    assert rejected["cams_series"] == 0
+    accepted = export(request, cams, None, tmp_path / "preserve", preserve_overlaps=True)
+    assert accepted["cams_series"] == 2
+    manifest = json.loads((tmp_path / "preserve/manifest.json").read_text())
+    assert len(manifest["overlapping_sources"]) == 1
+    with gzip.open(tmp_path / "preserve/cams_native.jsonl.gz", "rt") as f:
+        rows = [json.loads(line) for line in f]
+    assert len({r["source_path"] for r in rows}) == 2
+    assert rows[0]["values"] == rows[1]["values"]

@@ -12,6 +12,7 @@ import gzip
 import hashlib
 import json
 import math
+import subprocess
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
@@ -109,13 +110,13 @@ VARIABLES = {
 }
 
 
-def export(request_path, cams_root, obs_root, out, *, limit_cases=0):
+def export(request_path, cams_root, obs_root, out, *, limit_cases=0, preserve_overlaps=False):
     out = Path(out)
     out.mkdir(parents=True, exist_ok=False)
     request = json.loads(Path(request_path).read_text(encoding="utf-8"))
     cases = request["cases"][:limit_cases] if limit_cases else request["cases"]
     coords = request["coordinates"]
-    sources, failures = {}, []
+    sources, failures, overlaps = {}, [], []
     count = 0
     index = {}
     if cams_root:
@@ -137,11 +138,16 @@ def export(request_path, cams_root, obs_root, out, *, limit_cases=0):
                 ref = (date.fromisoformat(case["issue_date"]) - timedelta(days=1)).isoformat()
                 for kind in VARIABLES:
                     matches = index.get((kind, ref), [])
-                    if len(matches) != 1:
+                    if not matches or (len(matches) > 1 and not preserve_overlaps):
                         failures.append({"city": case["city"], "issue_date": case["issue_date"], "kind": kind,
                                          "reason": "file_missing" if not matches else "ambiguous_overlapping_files"})
-                    else:
-                        grouped.setdefault(matches[0], []).append((case, kind, ref))
+                        continue
+                    if len(matches) > 1:
+                        overlaps.append({"city": case["city"], "issue_date": case["issue_date"],
+                                         "kind": kind, "paths": [str(p) for p in matches],
+                                         "policy": "all source variants retained; no implicit deduplication"})
+                    for match in matches:
+                        grouped.setdefault(match, []).append((case, kind, ref))
             for path, selections in grouped.items():
                 source = identity(path); sources[source["sha256"]] = source
                 try:
@@ -158,7 +164,8 @@ def export(request_path, cams_root, obs_root, out, *, limit_cases=0):
                                     cycle = datetime.fromisoformat(ref).replace(hour=12, tzinfo=UTC)
                                     record = extract_netcdf_point(dataset, var, cycle, *coords[case["city"]])
                                     record.update({"city": case["city"], "issue_date": case["issue_date"],
-                                                   "canonical_variable": names[0], "source_sha256": source["sha256"]})
+                                                   "canonical_variable": names[0], "source_sha256": source["sha256"],
+                                                   "source_path": str(path.resolve())})
                                     stream.write(json.dumps(record, ensure_ascii=False, allow_nan=False) + "\n")
                                     count += 1
                                 except (ValueError, KeyError, IndexError) as exc:
@@ -191,7 +198,15 @@ def export(request_path, cams_root, obs_root, out, *, limit_cases=0):
                             "type": row["type"], "city_values": {city: row.get(city) for city in sorted(cities)},
                             "source_sha256": source["sha256"]}, ensure_ascii=False) + "\n")
                         obs_count += 1
-    manifest = {"contract_version": "native-city-export-v1", "request": identity(request_path),
+    try:
+        git_commit = subprocess.check_output(
+            ["git", "-C", str(Path(__file__).resolve().parents[1]), "rev-parse", "HEAD"],
+            text=True, stderr=subprocess.DEVNULL).strip()
+    except (OSError, subprocess.CalledProcessError):
+        git_commit = None
+    manifest = {"code_git_commit": git_commit, "overlapping_sources": overlaps,
+                "overlap_policy": "preserve_all" if preserve_overlaps else "reject",
+                "contract_version": "native-city-export-v1", "request": identity(request_path),
                 "extractor": identity(__file__), "requested_cases": len(cases), "cams_series": count,
                 "observation_records": obs_count, "raw_files_transferred": False,
                 "sources": list(sources.values()), "failures": failures,
@@ -207,13 +222,15 @@ def main():
     parser.add_argument("--obs-root", type=Path)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--limit-cases", type=int, default=0)
+    parser.add_argument("--preserve-overlaps", action="store_true",
+                        help="retain every overlapping file as a separately identified source variant")
     args = parser.parse_args()
     if not args.cams_root and not args.obs_root:
         parser.error("provide --cams-root and/or --obs-root")
     if args.limit_cases < 0:
         parser.error("limit-cases must be nonnegative")
     print(json.dumps(export(args.request, args.cams_root, args.obs_root, args.out,
-                            limit_cases=args.limit_cases), ensure_ascii=False))
+                            limit_cases=args.limit_cases, preserve_overlaps=args.preserve_overlaps), ensure_ascii=False))
 
 
 if __name__ == "__main__":
