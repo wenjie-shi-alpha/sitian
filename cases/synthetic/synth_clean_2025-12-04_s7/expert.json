@@ -1,0 +1,94 @@
+{
+ "forecast": {
+  "issue_date": "2025-12-04",
+  "region": "beijing",
+  "daily": [
+   {
+    "date": "2025-12-05",
+    "aqi_level": 1,
+    "pm25_range": [
+     18,
+     43
+    ],
+    "primary_pollutant": "PM2.5"
+   },
+   {
+    "date": "2025-12-06",
+    "aqi_level": 2,
+    "pm25_range": [
+     24,
+     51
+    ],
+    "primary_pollutant": "PM2.5"
+   },
+   {
+    "date": "2025-12-07",
+    "aqi_level": 2,
+    "pm25_range": [
+     25,
+     52
+    ],
+    "primary_pollutant": "PM2.5"
+   },
+   {
+    "date": "2025-12-08",
+    "aqi_level": 1,
+    "pm25_range": [
+     18,
+     44
+    ],
+    "primary_pollutant": "PM2.5"
+   },
+   {
+    "date": "2025-12-09",
+    "aqi_level": 2,
+    "pm25_range": [
+     29,
+     58
+    ],
+    "primary_pollutant": "PM2.5"
+   },
+   {
+    "date": "2025-12-10",
+    "aqi_level": 2,
+    "pm25_range": [
+     23,
+     51
+    ],
+    "primary_pollutant": "PM2.5"
+   }
+  ],
+  "process": {
+   "has_event": false,
+   "start": null,
+   "peak": null,
+   "end": null
+  },
+  "evidence": [
+   {
+    "type": "observation",
+    "claim": "近 48 小时区域浓度演变"
+   },
+   {
+    "type": "synoptic",
+    "claim": "地面与高空形势配置"
+   },
+   {
+    "type": "diagnostic",
+    "claim": "逆温、边界层与湿度条件"
+   },
+   {
+    "type": "model_guidance",
+    "claim": "EC 与 CMAQ 指导对比"
+   }
+  ],
+  "confidence": "high"
+ },
+ "evidence_types": [
+  "observation",
+  "synoptic",
+  "diagnostic",
+  "model_guidance"
+ ],
+ "notes": "synthetic expert reference for kind=clean"
+}

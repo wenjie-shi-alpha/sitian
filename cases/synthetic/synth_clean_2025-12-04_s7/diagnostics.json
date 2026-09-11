@@ -1,0 +1,94 @@
+{
+ "daily": {
+  "2025-12-02": {
+   "synoptic": "高压控制，扩散条件有利",
+   "wind_dir": "NW",
+   "wind_speed_ms": 4.0,
+   "inversion": "none",
+   "blh_m": 1300,
+   "rh_pct": 45,
+   "precip_mm": 0.0,
+   "transport": "none"
+  },
+  "2025-12-03": {
+   "synoptic": "高压控制，扩散条件有利",
+   "wind_dir": "NW",
+   "wind_speed_ms": 4.0,
+   "inversion": "weak",
+   "blh_m": 700,
+   "rh_pct": 65,
+   "precip_mm": 0.0,
+   "transport": "none"
+  },
+  "2025-12-04": {
+   "synoptic": "高压控制，扩散条件有利",
+   "wind_dir": "NW",
+   "wind_speed_ms": 4.0,
+   "inversion": "none",
+   "blh_m": 1300,
+   "rh_pct": 45,
+   "precip_mm": 0.0,
+   "transport": "none"
+  },
+  "2025-12-05": {
+   "synoptic": "高压控制，扩散条件有利",
+   "wind_dir": "NW",
+   "wind_speed_ms": 4.0,
+   "inversion": "weak",
+   "blh_m": 700,
+   "rh_pct": 65,
+   "precip_mm": 0.0,
+   "transport": "none"
+  },
+  "2025-12-06": {
+   "synoptic": "高压控制，扩散条件有利",
+   "wind_dir": "NW",
+   "wind_speed_ms": 4.0,
+   "inversion": "none",
+   "blh_m": 1300,
+   "rh_pct": 45,
+   "precip_mm": 0.0,
+   "transport": "none"
+  },
+  "2025-12-07": {
+   "synoptic": "高压控制，扩散条件有利",
+   "wind_dir": "NW",
+   "wind_speed_ms": 4.0,
+   "inversion": "none",
+   "blh_m": 1300,
+   "rh_pct": 45,
+   "precip_mm": 0.0,
+   "transport": "none"
+  },
+  "2025-12-08": {
+   "synoptic": "高压控制，扩散条件有利",
+   "wind_dir": "NW",
+   "wind_speed_ms": 4.0,
+   "inversion": "weak",
+   "blh_m": 700,
+   "rh_pct": 65,
+   "precip_mm": 0.0,
+   "transport": "none"
+  },
+  "2025-12-09": {
+   "synoptic": "高压控制，扩散条件有利",
+   "wind_dir": "NW",
+   "wind_speed_ms": 4.0,
+   "inversion": "none",
+   "blh_m": 1300,
+   "rh_pct": 45,
+   "precip_mm": 0.0,
+   "transport": "none"
+  },
+  "2025-12-10": {
+   "synoptic": "高压控制，扩散条件有利",
+   "wind_dir": "NW",
+   "wind_speed_ms": 4.0,
+   "inversion": "none",
+   "blh_m": 1300,
+   "rh_pct": 45,
+   "precip_mm": 0.0,
+   "transport": "none"
+  }
+ }
+}

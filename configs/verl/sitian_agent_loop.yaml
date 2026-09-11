@@ -1,0 +1,2 @@
+- name: sitian_tool_agent
+  _target_: sitian.integrations.verl_runtime.SitianToolAgentLoop

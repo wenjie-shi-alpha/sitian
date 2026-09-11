@@ -1,0 +1,943 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "专家预报 Harness：证据合同、Reward 与剩余门禁",
+    "description": "以 JJJ_ATMO 蒸馏语料作机制设计参考，对照全国开放证据、工具、reward-v0.7.9、硬指标与 RL 门禁；语料本身不进入训练。",
+    "generatedAt": "2026-09-03T17:17:39Z",
+    "cards": [],
+    "charts": [
+      {
+        "id": "evidence_mentions_chart",
+        "title": "专家证据出现率（Top 5）",
+        "subtitle": "272 条专家输出；词频仅是需求下界。",
+        "type": "bar",
+        "dataset": "evidence_mentions",
+        "sourceId": "expert_analysis",
+        "valueFormat": "percent",
+        "encodings": {
+          "x": {
+            "field": "category",
+            "type": "nominal",
+            "label": "证据类别"
+          },
+          "y": {
+            "field": "mention_rate",
+            "type": "quantitative",
+            "label": "记录出现率",
+            "format": "percent"
+          },
+          "tooltip": [
+            {
+              "field": "records",
+              "type": "quantitative",
+              "label": "命中记录"
+            },
+            {
+              "field": "total_records",
+              "type": "quantitative",
+              "label": "总记录"
+            }
+          ]
+        }
+      }
+    ],
+    "sources": [
+      {
+        "id": "expert_analysis",
+        "label": "Expert Analysis",
+        "path": "data/interim/efr.json",
+        "identity": {
+          "path": "data/interim/efr.json",
+          "exists": true,
+          "bytes": 62948,
+          "sha256": "41454580601b3ace9b19ed59ffc4f0fa1c463a641f511cb8b52a6a1ba9d70132"
+        },
+        "query": {
+          "engine": "sqlite",
+          "language": "sql",
+          "description": "Read-only audited project artifact; exact file identity is frozen below.",
+          "tables_used": [
+            "data/interim/efr.json"
+          ],
+          "executed_at": "2026-09-03T17:17:39Z",
+          "sql": "SELECT category, records, total_records, mention_rate FROM evidence_mentions ORDER BY mention_rate DESC LIMIT 5"
+        }
+      },
+      {
+        "id": "coverage",
+        "label": "Coverage",
+        "path": "data/interim/open_evidence_coverage.json",
+        "identity": {
+          "path": "data/interim/open_evidence_coverage.json",
+          "exists": true,
+          "bytes": 5084,
+          "sha256": "d03e7e4ceabec504186903b0560fa5fce43f9c9197fed9f586d9eea07395277f"
+        },
+        "query": {
+          "engine": "artifact",
+          "language": "json",
+          "description": "Read-only audited project artifact; exact file identity is frozen below.",
+          "tables_used": [
+            "data/interim/open_evidence_coverage.json"
+          ],
+          "executed_at": "2026-09-03T17:17:39Z"
+        }
+      },
+      {
+        "id": "expert_contract",
+        "label": "Expert Contract",
+        "path": "data/interim/expert_evidence_contract_audit.json",
+        "identity": {
+          "path": "data/interim/expert_evidence_contract_audit.json",
+          "exists": true,
+          "bytes": 6378,
+          "sha256": "8d466cf8f0622652cd8034f0493437cc701896356dd17ede6ea8149f6c2a9ef4"
+        },
+        "query": {
+          "engine": "artifact",
+          "language": "json",
+          "description": "Read-only audited project artifact; exact file identity is frozen below.",
+          "tables_used": [
+            "data/interim/expert_evidence_contract_audit.json"
+          ],
+          "executed_at": "2026-09-03T17:17:39Z"
+        }
+      },
+      {
+        "id": "spatial_ood_audit",
+        "label": "Spatial Ood Audit",
+        "path": "data/interim/spatial_ood_audit.json",
+        "identity": {
+          "path": "data/interim/spatial_ood_audit.json",
+          "exists": true,
+          "bytes": 33131,
+          "sha256": "9a3ab91b3bf3da174e6e62ebef2f5f44921bcc61df35cab29a5358c9fa8d888e"
+        },
+        "query": {
+          "engine": "artifact",
+          "language": "json",
+          "description": "Read-only audited project artifact; exact file identity is frozen below.",
+          "tables_used": [
+            "data/interim/spatial_ood_audit.json"
+          ],
+          "executed_at": "2026-09-03T17:17:39Z"
+        }
+      },
+      {
+        "id": "probe",
+        "label": "Probe",
+        "path": "data/interim/probe_open_evidence_v079_n50_g8.json",
+        "identity": {
+          "path": "data/interim/probe_open_evidence_v079_n50_g8.json",
+          "exists": true,
+          "bytes": 4528229,
+          "sha256": "0e97ada4eeed31c8bb7f0d796c96020cba3b6c19c051b6fd30dc2f9c4da3e51b"
+        },
+        "query": {
+          "engine": "artifact",
+          "language": "json",
+          "description": "Read-only audited project artifact; exact file identity is frozen below.",
+          "tables_used": [
+            "data/interim/probe_open_evidence_v079_n50_g8.json"
+          ],
+          "executed_at": "2026-09-03T17:17:39Z"
+        }
+      },
+      {
+        "id": "tabular",
+        "label": "Tabular",
+        "path": "data/interim/eval_tabular_open_evidence_v079.json",
+        "identity": {
+          "path": "data/interim/eval_tabular_open_evidence_v079.json",
+          "exists": true,
+          "bytes": 18754143,
+          "sha256": "414226e2ca0161a897a7249eb97955ca76e889ce7db5b35a2f2ba3c4557203a0"
+        },
+        "query": {
+          "engine": "artifact",
+          "language": "json",
+          "description": "Read-only audited project artifact; exact file identity is frozen below.",
+          "tables_used": [
+            "data/interim/eval_tabular_open_evidence_v079.json"
+          ],
+          "executed_at": "2026-09-03T17:17:39Z"
+        }
+      },
+      {
+        "id": "preflight",
+        "label": "Preflight",
+        "path": "data/interim/rl_preflight.json",
+        "identity": {
+          "path": "data/interim/rl_preflight.json",
+          "exists": true,
+          "bytes": 514016,
+          "sha256": "edf3286006c1554a86d2e6f5a3197ea694b562848f0c27d008fe861d918d1e8f"
+        },
+        "query": {
+          "engine": "artifact",
+          "language": "json",
+          "description": "Read-only audited project artifact; exact file identity is frozen below.",
+          "tables_used": [
+            "data/interim/rl_preflight.json"
+          ],
+          "executed_at": "2026-09-03T17:17:39Z"
+        }
+      },
+      {
+        "id": "training_smoke",
+        "label": "Training Smoke",
+        "path": "data/interim/training_smoke.json",
+        "identity": {
+          "path": "data/interim/training_smoke.json",
+          "exists": false
+        },
+        "query": {
+          "engine": "artifact",
+          "language": "json",
+          "description": "Read-only audited project artifact; exact file identity is frozen below.",
+          "tables_used": [
+            "data/interim/training_smoke.json"
+          ],
+          "executed_at": "2026-09-03T17:17:39Z"
+        }
+      },
+      {
+        "id": "reward_contract",
+        "label": "Reward Contract",
+        "path": "data/interim/reward_contract_audit.json",
+        "identity": {
+          "path": "data/interim/reward_contract_audit.json",
+          "exists": true,
+          "bytes": 5085,
+          "sha256": "2738bbd105d1b26657196ef973561224753f29239c9b1f3fd018c4daa6b0dae5"
+        },
+        "query": {
+          "engine": "artifact",
+          "language": "json",
+          "description": "Read-only audited project artifact; exact file identity is frozen below.",
+          "tables_used": [
+            "data/interim/reward_contract_audit.json"
+          ],
+          "executed_at": "2026-09-03T17:17:39Z"
+        }
+      },
+      {
+        "id": "reward_sensitivity",
+        "label": "Reward Sensitivity",
+        "path": "data/interim/reward_weight_sensitivity_v079.json",
+        "identity": {
+          "path": "data/interim/reward_weight_sensitivity_v079.json",
+          "exists": true,
+          "bytes": 98321,
+          "sha256": "1e67c55eeb85dd59778deff7626edfbe423f57212a16271c719529189de69f7b"
+        },
+        "query": {
+          "engine": "artifact",
+          "language": "json",
+          "description": "Read-only audited project artifact; exact file identity is frozen below.",
+          "tables_used": [
+            "data/interim/reward_weight_sensitivity_v079.json"
+          ],
+          "executed_at": "2026-09-03T17:17:39Z"
+        }
+      },
+      {
+        "id": "verl_runtime_contract",
+        "label": "Verl Runtime Contract",
+        "path": "data/interim/verl_runtime_contract.json",
+        "identity": {
+          "path": "data/interim/verl_runtime_contract.json",
+          "exists": true,
+          "bytes": 4693,
+          "sha256": "6d9e319f2eeab9f5ed0398a088474cc6d6c5dcc4302a56a4887ce23ad1f2dba9"
+        },
+        "query": {
+          "engine": "artifact",
+          "language": "json",
+          "description": "Read-only audited project artifact; exact file identity is frozen below.",
+          "tables_used": [
+            "data/interim/verl_runtime_contract.json"
+          ],
+          "executed_at": "2026-09-03T17:17:39Z"
+        }
+      },
+      {
+        "id": "guidance_comparison",
+        "label": "Guidance Comparison",
+        "path": "data/interim/compare_v079_frozen_vs_guidance.json",
+        "identity": {
+          "path": "data/interim/compare_v079_frozen_vs_guidance.json",
+          "exists": true,
+          "bytes": 15128,
+          "sha256": "e43078a56a60ebc18e79fa7cfe31c3f6a6b6a3c5cc635987ecacbe6447a7eb46"
+        },
+        "query": {
+          "engine": "artifact",
+          "language": "json",
+          "description": "Read-only audited project artifact; exact file identity is frozen below.",
+          "tables_used": [
+            "data/interim/compare_v079_frozen_vs_guidance.json"
+          ],
+          "executed_at": "2026-09-03T17:17:39Z"
+        }
+      },
+      {
+        "id": "tabular_comparison",
+        "label": "Tabular Comparison",
+        "path": "data/interim/compare_v079_frozen_vs_tabular.json",
+        "identity": {
+          "path": "data/interim/compare_v079_frozen_vs_tabular.json",
+          "exists": true,
+          "bytes": 15352,
+          "sha256": "596627e316bdb10aed7b5d28756a59f114bbb7432d526b18714bd9ea0799b23c"
+        },
+        "query": {
+          "engine": "artifact",
+          "language": "json",
+          "description": "Read-only audited project artifact; exact file identity is frozen below.",
+          "tables_used": [
+            "data/interim/compare_v079_frozen_vs_tabular.json"
+          ],
+          "executed_at": "2026-09-03T17:17:39Z"
+        }
+      }
+    ],
+    "blocks": [
+      {
+        "id": "title",
+        "type": "markdown",
+        "body": "# 专家预报 Harness：证据合同、Reward 与剩余门禁"
+      },
+      {
+        "id": "executive_summary",
+        "type": "markdown",
+        "body": "## 执行摘要\n\n**当前状态：冻结策略门禁已通过，等待可训练闭环。** 专家语料仅作机制设计参考；全国训练输入仍是起报时合法可得的开放数据。新证据附件覆盖为 100.0%，专家证据合同为 PASS，Reward 可执行合同为 PASS；veRL 原生运行时合同为 PASS；整城空间 OOD 划分为 READY；当前版本 frozen probe 为 50 case × group 8；可训练 LoRA 冒烟为 尚未通过。\n\nHarness 已把初态、天气系统、多层扩散、未来风向对应的起报时上游实况、污染组成、模式订正和过程时序放入可审计工具。reward-v0.7.9 将含 grounding 的训练分与只含预报结果的 outcome composite 分离；论文毕业仍由硬 MAE/CSI/F1/区间指标和分块 CI 决定。"
+      },
+      {
+        "id": "evidence_mentions",
+        "type": "markdown",
+        "body": "## 专家证据出现率（Top 5）\n\n词频只是需求下界，不能代替通用必需/条件关键/校准增强的科学分类。"
+      },
+      {
+        "id": "evidence_mentions_chart_block",
+        "type": "chart",
+        "chartId": "evidence_mentions_chart"
+      },
+      {
+        "id": "decision_gap_matrix",
+        "type": "markdown",
+        "body": "## 专家决策需求：四层缺口矩阵\n\n每项分别判断“资料存在、工具可见、策略实际使用、Reward/评测能检验”。前一层通过不自动推出后一层通过。\n\n1. **判定起报时的污染初态与区域态势** （通用必需 / P1）\n   数据：强（逐 case 合同通过）；工具：强；策略：已观测使用（最高 99.2%）；Reward/测试：部分。\n   剩余缺口：process view 已给六污染物初态、趋势和热点；正式策略使用率见本行，结果 reward 不证明因果解释正确\n\n2. **识别高低压、槽脊、冷空气及其演变** （通用必需 / P0）\n   数据：强（逐 case 合同通过）；工具：强；策略：已观测使用（最高 99.2%）；Reward/测试：弱。\n   剩余缺口：6h/12h 轨迹、系统中心和槽脊进入 compact/deep view；原始覆盖和合同已通过，仍需形势证据遮蔽消融\n\n3. **判断水平扩散、上游输送与风向转折** （通用必需 / P0）\n   数据：强（逐 case 合同通过）；工具：较强；策略：已观测使用（最高 99.2%）；Reward/测试：弱。\n   剩余缺口：已有地形自适应多层风转折、随时效来流情景、上游城市和静态源方位；当前仍是目标点平流筛选，不冒充拉格朗日轨迹\n\n4. **判断边界层、逆温、垂直运动与静稳累积** （通用必需 / P1）\n   数据：强（逐 case 合同通过）；工具：强；策略：已观测使用（最高 99.2%）；Reward/测试：弱。\n   剩余缺口：compact view 已给 RH925/700、omega700、逆温和逐日 BLH/RH/雨；仍需消融证明策略确实使用\n\n5. **区分 PM2.5、O3、沙尘/PM10 与火点过程机制** （事件条件必需 / P1）\n   数据：强（逐 case 合同通过）；工具：较强；策略：已观测使用（最高 99.2%）；Reward/测试：结果较强/机制弱。\n   剩余缺口：已有短波、AOD组分、气体、沙尘、火点和 PM10 区间；缺可独立标注的机制真值，不能把规则代理冒充专家判断\n\n6. **融合多模式指导并做历史偏差订正** （通用必需 / P1）\n   数据：强（逐 case 合同通过）；工具：强；策略：已观测使用（最高 48.8%）；Reward/测试：部分。\n   剩余缺口：guidance-bias 已按时间安全注册；需 frozen/RL 消融证明订正增值而非盲抄\n\n7. **定位污染过程的起始、峰值、清除与转折时刻** （通用必需 / P0）\n   数据：强（逐 case 合同通过）；工具：强；策略：已观测使用（最高 99.2%）；Reward/测试：稠密塑形+硬指标。\n   剩余缺口：已有高频过程视图、daily/process 一致性和硬 CSI；仍需在不依赖互斥采样标签的真值 AQI>=4 事件层，同时证明相对 CAMS 与同信息强 tabular 的训后 event/turning 增值及遮蔽消融\n\n8. **表达情景分支、不确定性与可信区间** （校准必需 / P1）\n   数据：强（逐 case 合同通过）；工具：较强；策略：已观测使用（最高 88.0%）；Reward/测试：较强。\n   剩余缺口：PM2.5/PM10/O3 80%区间与硬校准指标已覆盖；categorical confidence 已退出策略输出，仍需验证模式离散度与实际误差的 spread-skill\n\n9. **对照上一版预报和历史相似过程** （校准增强 / P2）\n   数据：部分；工具：弱；策略：正式探针未见使用；Reward/测试：缺失。\n   剩余缺口：全国 case 当前无 previous_forecast/analog 输入；环境只在数据真实存在时注册工具，相似过程索引仍为 P2\n\n10. **把结论锚定到可核验的证据断言** （科研可信必需 / P1）\n   数据：强（逐 case 合同通过）；工具：强；策略：完整 grounding 70.2%；Reward/测试：较强。\n   剩余缺口：ref+JSON Pointer+标量值已抗伪造且需两条不重复断言；仍只核验事实，不把自由文本因果解释当真值\n"
+      },
+      {
+        "id": "case_contract",
+        "type": "markdown",
+        "body": "## 逐 case 证据合同\n\n| 逐 case 能力合同 | 通过 case | 覆盖率 | Preflight 必需 |\n|---|---|---|---|\n| pollution_initial_state | 7057/7057 | 100.0% | 是 |\n| synoptic_system_evolution | 7057/7057 | 100.0% | 是 |\n| horizontal_transport | 7057/7057 | 100.0% | 是 |\n| vertical_dispersion | 7057/7057 | 100.0% | 是 |\n| pollutant_mechanism_evidence | 7057/7057 | 100.0% | 是 |\n| terrain_adaptive_pressure_levels | 7057/7057 | 100.0% | 是 |\n| guidance_and_calibration_inputs | 7057/7057 | 100.0% | 是 |\n| process_timing_view | 7057/7057 | 100.0% | 是 |\n| forecast_output_contract | 7057/7057 | 100.0% | 是 |\n| time_gate | 7057/7057 | 100.0% | 是 |\n\n合同只证明起报时合法可取且能送入工具，不证明策略已使用或因果解释正确。"
+      },
+      {
+        "id": "truth_event_population",
+        "type": "markdown",
+        "body": "## 真值事件总体与采样标签偏差\n\n| split | 真值 AQI≥4 case | 按互斥采样层分布 | event 标签召回率 |\n|---|---|---|---|\n| train | 894 | {'event': 779, 'switch': 41, 'pm10_primary': 74} | 87.1% |\n| val | 228 | {'pm10_primary': 14, 'event': 213, 'switch': 1} | 93.4% |\n| test | 27 | {'pm10_primary': 15, 'event': 12} | 44.4% |\n\n互斥 stratum 只服务抽样平衡；事件毕业层始终由隐藏完整真值定义，不会遗漏 PM10 主导或污染物切换事件。"
+      },
+      {
+        "id": "reward_attack_audit",
+        "type": "markdown",
+        "body": "## Reward 防投机审计\n\n| 攻击面 | 可能的假增益 | 当前约束 |\n|---|---|---|\n| 格式/字段投机 | schema 不合法或 daily/process 不一致 | 整条提交 0 分；允许预算内自纠 |\n| 多输出头各自投机 | 等级、首污、区间各自合理但联合不可能 | 按 HJ 633 的 IAQI 尺度验证首污可达到等级并压过其他区间下界；process 头必填 |\n| 伪造工具返回 | 模型文本冒充 tool result | veRL bridge 只重放 assistant tool call，由隐藏 case 重算结果 |\n| 虚构引用 | 不存在 ref/JSON Pointer/值 | 严格解析工具+语义分区+Pointer+标量值，不匹配不给结构化引用分 |\n| 重复同一事实 | 换 ref 或 42/42.0 凑满 grounding | 按工具返回内容哈希+JSON Pointer 去重，并要求 2 类证据 |\n| 真实但无关的引用 | 机械复制两个正确标量赚 grounding | 仅作为低权重训练辅助且从 outcome 排除；实际证据利用必须通过同 seed 遮蔽剂量反应，当前不声称自动核验决策相关性 |\n| 干净日重复送分 | clean 同时拿 event/turning 满分 | 无事件正确否定时相关分量弃权，level 承担评分 |\n| 交互模型比较占便宜 | agent 多出 grounding 分 | 训练 composite 与公平 outcome_composite 分离 |\n| 超宽区间 | 用无限宽区间追求覆盖 | 按80% interval score连续指数衰减且无保底平台；毕业另看 coverage、width、原始 interval score |\n| 成功条件化 | 丢弃格式失败 rollout 后只报成功样本硬指标 | 失败轨迹按最差保守计数进入 case 内平均，再按起报日分块 bootstrap |\n| 事件层漏样 | 把互斥采样标签 event 当成全部真实事件 | 事件 probe/比较/门禁由隐藏完整真值 AQI≥4 定义；标签召回率仅作覆盖诊断 |\n| 因果套话 | 自由文本机制解释看似合理 | 不作为真值或奖励；保留为独立标注/遮蔽实验缺口 |\n| Off-policy rollout | AWQ 采样、BF16/LoRA 更新 | 训练 rollout 由同步后的 trainable veRL/vLLM 策略生成 |\n| 工具 token 学习 | 对环境返回反向传播 | veRL response_mask 仅保留 assistant token，并由冒烟审计 |\n\n### 可执行不变量\n\n| 可执行 Reward 不变量 | 状态 | 观测 |\n|---|---|---|\n| perfect_oracle_reaches_one | PASS | {\"observed\": 1.0} |\n| level_error_strictly_reduces_outcome | PASS | {\"perfect\": 1.0, \"degraded\": 0.8124} |\n| wider_intervals_are_penalized | PASS | {\"narrow\": 1.0, \"wide\": 0.0174} |\n| maximum_width_intervals_have_no_reward_floor | PASS | {\"maximum_width_interval_component\": 0.0004, \"maximum_width_outcome\": 0.3201, \"ordinary_wide_outcome\": 0.4393} |\n| clean_correct_negative_abstains_event_and_turning | PASS | {\"event\": null, \"turning\": null} |\n| clean_false_alarm_is_penalized | PASS | {\"event\": 0.0, \"clean_outcome\": 1.0, \"false_alarm_outcome\": 0.5} |\n| invalid_schema_is_zero | PASS | {\"composite\": 0.0, \"outcome_composite\": 0.0} |\n| derived_heads_match_truth_for_oracle_intervals | PASS | {\"daily\": [[\"2026-06-02\", 1, null], [\"2026-06-03\", 4, \"PM2.5\"], [\"2026-06-04\", 5, \"PM10\"], [\"2026-06-05\", 2, \"PM2.5\"]], \"process\": {\"has_event\": true, \"start\": \"2026-06-03\", \"peak\": \"2026-06-04\", \"end\": \"2026-06-04\"}} |\n| supplied_categorical_heads_cannot_override_intervals | PASS | {\"outcome\": 1.0, \"perfect\": 1.0} |\n| interval_only_submission_is_complete | PASS | {\"outcome\": 1.0} |\n| derived_primary_is_the_highest_iaqi_midpoint | PASS | {\"daily0\": {\"date\": \"2026-06-02\", \"aqi_level\": 2, \"pm25_range\": [36.0, 45.0], \"primary_pollutant\": \"PM10\", \"o3_range\": [20.0, 40.0], \"pm10_range\": [115.0, 119.0]}} |\n| two_facts_two_types_reach_full_grounding | PASS | {\"observed\": 1.0} |\n| grounding_cannot_change_fair_outcome_score | PASS | {\"without_tools\": 1.0, \"with_tools\": 1.0} |\n| tool_call_spam_without_citations_gets_zero_grounding | PASS | {\"grounding\": 0.0, \"tools_called\": 3} |\n| extra_invalid_citation_cannot_preserve_full_grounding | PASS | {\"clean_grounding\": 1.0, \"poisoned_grounding\": 0.6667, \"structured_invalid\": 1, \"unique_assertions\": 2, \"scored_items\": 3} |\n| duplicate_fact_cannot_reach_full_grounding | PASS | {\"observed\": 0.5} |\n| replayed_ref_or_numeric_spelling_cannot_duplicate_fact | PASS | {\"grounding\": 0.5, \"unique_assertions\": 1} |\n| missing_values_cannot_be_semantic_facts | PASS | {\"grounding\": 0.0, \"semantic_verified\": 0} |\n| invalid_structured_citations_get_no_type_fallback | PASS | {\"grounding\": 0.0, \"structured_invalid\": 2} |\n| unstructured_citation_retains_bounded_type_credit | PASS | {\"grounding\": 0.1, \"type_only_items\": 1} |\n| standard_change_is_explicit | PASS | {\"pm25_70_level_2012\": 2, \"pm25_70_level_2026\": 3} |\n\n### Outcome 权重敏感性\n\n| 权重情景 | 策略 | Tabular | 配对差 | 分块 95% CI | 方向 |\n|---|---|---|---|---|---|\n| default | 0.529 | 0.683 | -0.154 | [-0.195031, -0.116996] | policy_below |\n| equal_components | 0.495 | 0.670 | -0.175 | [-0.217886, -0.136207] | policy_below |\n| level_minus25pct | 0.515 | 0.671 | -0.157 | [-0.197816, -0.120296] | policy_below |\n| level_plus25pct | 0.540 | 0.692 | -0.152 | [-0.192765, -0.114357] | policy_below |\n| event_minus25pct | 0.534 | 0.688 | -0.153 | [-0.193951, -0.116468] | policy_below |\n| event_plus25pct | 0.525 | 0.679 | -0.154 | [-0.196822, -0.117982] | policy_below |\n| interval_minus25pct | 0.529 | 0.678 | -0.148 | [-0.191421, -0.111054] | policy_below |\n| interval_plus25pct | 0.529 | 0.688 | -0.159 | [-0.199865, -0.123376] | policy_below |\n| turning_minus25pct | 0.534 | 0.698 | -0.163 | [-0.204308, -0.127087] | policy_below |\n| turning_plus25pct | 0.524 | 0.669 | -0.145 | [-0.187268, -0.108482] | policy_below |\n| primary_minus25pct | 0.532 | 0.680 | -0.148 | [-0.188443, -0.111211] | policy_below |\n| primary_plus25pct | 0.527 | 0.686 | -0.159 | [-0.20152, -0.12288] | policy_below |\n\n这些不变量用于防已知投机；权重网格用于发现单一组合驱动的结论。自由文本 claim 不在自动核验范围；二者都不能替代遮蔽实验、硬指标或证明模型具备预报技巧。"
+      },
+      {
+        "id": "forecast_output_scope",
+        "type": "markdown",
+        "body": "## 输出范围与尚未补齐的概率头\n\n| split | 六类首污真值 membership | 并列首污日 |\n|---|---|---|\n| train | {\"CO\": 1, \"NO2\": 166, \"O3\": 10063, \"PM10\": 1213, \"PM2.5\": 8116} | 96 |\n| val | {\"O3\": 3247, \"PM10\": 140, \"PM2.5\": 71} | 4 |\n| test | {\"O3\": 5451, \"PM10\": 273, \"PM2.5\": 16} | 4 |\n\n当前 AQI 与首污按六污染物评分，但 80% 浓度区间只覆盖 PM2.5/PM10/O3。NO2/CO 首污仅出现在 train，SO2 首污在当前有效池未出现；因此暂不为极少数类别增加三个高格式负担的概率头，但必须作为显式范围限制，不能声称六污染物均已校准。"
+      },
+      {
+        "id": "preflight",
+        "type": "markdown",
+        "body": "## 开训门禁\n\n- 数据、Reward 与专家证据合同：**PASS**\n- 格式与轨迹：**PASS**\n- 上下文预算：**PASS**\n- 采样效率：**PASS**\n- 结构化证据引用：**PASS**\n- 可训练栈与硬件冒烟：**BLOCKED**"
+      },
+      {
+        "id": "comparisons",
+        "type": "markdown",
+        "body": "## 当前可比较结果\n\n所有模型—基线比较使用 `outcome_composite`，不含交互式 grounding；训练仍优化含 grounding 的 composite，但 DAPO 按 outcome_composite 过滤零方差组，grounding-only 变化不能冒充数值梯度。\n\n- Frozen vs CAMS：n=50；模型 0.529，基线 0.631，差值 -0.102；状态 estimable。\n- Frozen vs tabular：n=50；模型 0.529，基线 0.683，差值 -0.154；状态 estimable。\n\n这些 frozen 结果只定义 RL 起点；是否扩到 8B 必须看训后独立验证和事件硬 CSI，不能由裸模型先验决定。\n空间 OOD test 来自八个完全不进训练的城市；它检验空间泛化，但暖季构成不能替代冬季事件前瞻评测。"
+      },
+      {
+        "id": "boundary",
+        "type": "markdown",
+        "body": "## 科学边界\n\n仍未完成的研究证据不会被数据覆盖率替代：时间安全 analog、独立污染机制标签、SO2/NO2/CO 概率区间、自由文本因果核验、全传感器历史 NRT、区间校准/spread-skill、证据剂量消融、trainable policy 闭环、2026–27 冬季前瞻集都必须单列。完整逐项审计见同目录 `appendix.md`。"
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-09-03T17:17:39Z",
+    "status": "ready",
+    "datasets": {
+      "headline": [
+        {
+          "expert_records": 272,
+          "meeting_dates": 19,
+          "attachment_rate": 1.0,
+          "expert_contract_pass": true,
+          "reward_contract_pass": true,
+          "reward_sensitivity_current": true,
+          "verl_runtime_contract_pass": true,
+          "formal_probe": true,
+          "first_submit_valid_rate": 0.95,
+          "full_grounding_rate": 0.7017994858611826,
+          "usable_group_rate": 1.0,
+          "outcome_usable_group_rate_valid_only": 1.0,
+          "event_decision_usable_group_rate_valid_only": 1.0,
+          "preflight_pass": false,
+          "raw_preflight_pass": false,
+          "preflight_reward_identity_current": true,
+          "training_smoke_pass": false
+        }
+      ],
+      "evidence_mentions": [
+        {
+          "category": "过程时序",
+          "records": 243,
+          "total_records": 272,
+          "mention_rate": 0.893382,
+          "importance_class": "词频下界；重要性另按通用/条件/校准分类"
+        },
+        {
+          "category": "实况态势",
+          "records": 241,
+          "total_records": 272,
+          "mention_rate": 0.886029,
+          "importance_class": "词频下界；重要性另按通用/条件/校准分类"
+        },
+        {
+          "category": "天气系统",
+          "records": 236,
+          "total_records": 272,
+          "mention_rate": 0.867647,
+          "importance_class": "词频下界；重要性另按通用/条件/校准分类"
+        },
+        {
+          "category": "风场输送",
+          "records": 226,
+          "total_records": 272,
+          "mention_rate": 0.830882,
+          "importance_class": "词频下界；重要性另按通用/条件/校准分类"
+        },
+        {
+          "category": "稳定边界层",
+          "records": 217,
+          "total_records": 272,
+          "mention_rate": 0.797794,
+          "importance_class": "词频下界；重要性另按通用/条件/校准分类"
+        }
+      ],
+      "decision_chain": [],
+      "coverage_audit": [
+        {
+          "order": 1,
+          "decision_task": "判定起报时的污染初态与区域态势",
+          "importance": "通用必需",
+          "key_evidence": "目标城市与区域 PM2.5/PM10/O3 小时实况、24h 趋势、空间热点",
+          "raw_data": "强（逐 case 合同通过）",
+          "tool_exposure": "强",
+          "policy_use": "已观测使用（最高 99.2%）",
+          "reward_test": "部分",
+          "principal_gap": "process view 已给六污染物初态、趋势和热点；正式策略使用率见本行，结果 reward 不证明因果解释正确",
+          "priority": "P1"
+        },
+        {
+          "order": 2,
+          "decision_task": "识别高低压、槽脊、冷空气及其演变",
+          "importance": "通用必需",
+          "key_evidence": "MSLP、500 hPa 高度场、多层风温湿、GFS/IFS 演变与分歧",
+          "raw_data": "强（逐 case 合同通过）",
+          "tool_exposure": "强",
+          "policy_use": "已观测使用（最高 99.2%）",
+          "reward_test": "弱",
+          "principal_gap": "6h/12h 轨迹、系统中心和槽脊进入 compact/deep view；原始覆盖和合同已通过，仍需形势证据遮蔽消融",
+          "priority": "P0"
+        },
+        {
+          "order": 3,
+          "decision_task": "判断水平扩散、上游输送与风向转折",
+          "importance": "通用必需",
+          "key_evidence": "地面至高空风场、上游城市污染、输送通道、地形与排放方位",
+          "raw_data": "强（逐 case 合同通过）",
+          "tool_exposure": "较强",
+          "policy_use": "已观测使用（最高 99.2%）",
+          "reward_test": "弱",
+          "principal_gap": "已有地形自适应多层风转折、随时效来流情景、上游城市和静态源方位；当前仍是目标点平流筛选，不冒充拉格朗日轨迹",
+          "priority": "P0"
+        },
+        {
+          "order": 4,
+          "decision_task": "判断边界层、逆温、垂直运动与静稳累积",
+          "importance": "通用必需",
+          "key_evidence": "BLH、925/850/700 hPa 温湿、850/700/500 hPa omega、风切变",
+          "raw_data": "强（逐 case 合同通过）",
+          "tool_exposure": "强",
+          "policy_use": "已观测使用（最高 99.2%）",
+          "reward_test": "弱",
+          "principal_gap": "compact view 已给 RH925/700、omega700、逆温和逐日 BLH/RH/雨；仍需消融证明策略确实使用",
+          "priority": "P1"
+        },
+        {
+          "order": 5,
+          "decision_task": "区分 PM2.5、O3、沙尘/PM10 与火点过程机制",
+          "importance": "事件条件必需",
+          "key_evidence": "AOD 组分、CO/NO2/SO2、温度/云/辐射、沙尘 AOD、火点、降水",
+          "raw_data": "强（逐 case 合同通过）",
+          "tool_exposure": "较强",
+          "policy_use": "已观测使用（最高 99.2%）",
+          "reward_test": "结果较强/机制弱",
+          "principal_gap": "已有短波、AOD组分、气体、沙尘、火点和 PM10 区间；缺可独立标注的机制真值，不能把规则代理冒充专家判断",
+          "priority": "P1"
+        },
+        {
+          "order": 6,
+          "decision_task": "融合多模式指导并做历史偏差订正",
+          "importance": "通用必需",
+          "key_evidence": "CAMS/CMAQ/NAQP、GFS/IFS 分歧、城市×季节×lead 历史误差",
+          "raw_data": "强（逐 case 合同通过）",
+          "tool_exposure": "强",
+          "policy_use": "已观测使用（最高 48.8%）",
+          "reward_test": "部分",
+          "principal_gap": "guidance-bias 已按时间安全注册；需 frozen/RL 消融证明订正增值而非盲抄",
+          "priority": "P1"
+        },
+        {
+          "order": 7,
+          "decision_task": "定位污染过程的起始、峰值、清除与转折时刻",
+          "importance": "通用必需",
+          "key_evidence": "高频天气转折、小时实况趋势、逐日污染指导及过程阶段",
+          "raw_data": "强（逐 case 合同通过）",
+          "tool_exposure": "强",
+          "policy_use": "已观测使用（最高 99.2%）",
+          "reward_test": "稠密塑形+硬指标",
+          "principal_gap": "已有高频过程视图、daily/process 一致性和硬 CSI；仍需在不依赖互斥采样标签的真值 AQI>=4 事件层，同时证明相对 CAMS 与同信息强 tabular 的训后 event/turning 增值及遮蔽消融",
+          "priority": "P0"
+        },
+        {
+          "order": 8,
+          "decision_task": "表达情景分支、不确定性与可信区间",
+          "importance": "校准必需",
+          "key_evidence": "多模式/集合离散度、历史误差分位、情景触发条件",
+          "raw_data": "强（逐 case 合同通过）",
+          "tool_exposure": "较强",
+          "policy_use": "已观测使用（最高 88.0%）",
+          "reward_test": "较强",
+          "principal_gap": "PM2.5/PM10/O3 80%区间与硬校准指标已覆盖；categorical confidence 已退出策略输出，仍需验证模式离散度与实际误差的 spread-skill",
+          "priority": "P1"
+        },
+        {
+          "order": 9,
+          "decision_task": "对照上一版预报和历史相似过程",
+          "importance": "校准增强",
+          "key_evidence": "昨日预报、历史相似形势/污染过程、历史模式误差",
+          "raw_data": "部分",
+          "tool_exposure": "弱",
+          "policy_use": "正式探针未见使用",
+          "reward_test": "缺失",
+          "principal_gap": "全国 case 当前无 previous_forecast/analog 输入；环境只在数据真实存在时注册工具，相似过程索引仍为 P2",
+          "priority": "P2"
+        },
+        {
+          "order": 10,
+          "decision_task": "把结论锚定到可核验的证据断言",
+          "importance": "科研可信必需",
+          "key_evidence": "字段、有效时刻、空间对象、方向、来源版本与 hash",
+          "raw_data": "强（逐 case 合同通过）",
+          "tool_exposure": "强",
+          "policy_use": "完整 grounding 70.2%",
+          "reward_test": "较强",
+          "principal_gap": "ref+JSON Pointer+标量值已抗伪造且需两条不重复断言；仍只核验事实，不把自由文本因果解释当真值",
+          "priority": "P1"
+        }
+      ],
+      "priority_backlog": [
+        {
+          "rank": 1,
+          "priority": "P0",
+          "work": "完成 open-evidence-v1 高频合同与逐 case 重挂接",
+          "deliverable": "GFS/IFS 6h→72h/12h→132h、辐射、CAMS 三通道、火点、静态源全部派生并严格附着",
+          "success_gate": "原始/派生/attachment 均 100%，六污染物与时间门禁失败为 0"
+        },
+        {
+          "rank": 2,
+          "priority": "P0",
+          "work": "冻结 v0.7.9 正式探针与格式/grounding 裁决",
+          "deliverable": "至少 50 case×group8，记录首次合法、两条语义断言、过程工具使用和组内方差",
+          "success_gate": "首次合法>=95%，full-grounding rollout>=50%，总 reward 有效 group>=70%；outcome 与 event 决策有效 group 分别>=50%"
+        },
+        {
+          "rank": 3,
+          "priority": "P0",
+          "work": "完成同信息集强基线与非塑形毕业指标",
+          "deliverable": "重训 tabular；另对八个整城留出的空间 OOD val/test 报告同一套硬指标",
+          "success_gate": "reward/manifest 一致；空间 OOD test 至少100 case、30个起报日块且所有主要结论有硬指标和分块CI"
+        },
+        {
+          "rank": 4,
+          "priority": "P0",
+          "work": "完成 trainable 1.7B/4B LoRA 冒烟",
+          "deliverable": "当前策略同步 rollout、assistant-only mask、void-turn 率门禁、Dr.GRPO、checkpoint reload",
+          "success_gate": "50–200 step finite loss；同步与重载前后行为变化可复核"
+        },
+        {
+          "rank": 5,
+          "priority": "P1",
+          "work": "验证污染类型条件路由和证据剂量反应",
+          "deliverable": "PM2.5 高湿二次、O3 光化学、沙尘/PM10、火点烟霾分别遮蔽关键通道",
+          "success_gate": "按过程类型的遮蔽实验呈剂量反应，而不是所有 case 无差别塞满工具输出"
+        },
+        {
+          "rank": 6,
+          "priority": "P1",
+          "work": "先固定 compact 过程证据学习决策，再释放工具选择",
+          "deliverable": "单轮/受控多轮课程，工具 token mask、void-turn 率门禁、Dr.GRPO、动态样本过滤",
+          "success_gate": "小模型 smoke 闭环通过，event/turning 有有效样本率，工具调用不发生 lazy collapse"
+        },
+        {
+          "rank": 7,
+          "priority": "P1",
+          "work": "预注册 reward 权重敏感性与 Pareto 稳定性分析",
+          "deliverable": "在不改组件定义的前提下扫描合理权重网格，同时报告各硬指标、策略排序与事件层退化",
+          "success_gate": "主要结论不依赖单一权重组合；任何权重选择均不能掩盖 MAE、事件命中或校准恶化"
+        },
+        {
+          "rank": 8,
+          "priority": "P2",
+          "work": "建设时间安全的相似过程检索",
+          "deliverable": "以起报时可见特征检索历史个例，返回相似度、可用截止和结果摘要",
+          "success_gate": "严格时间门禁、城市/日期去重，并通过 analog 遮蔽消融证明净增值"
+        }
+      ],
+      "preflight_gates": [
+        {
+          "gate": "数据、Reward 与专家证据合同",
+          "status": "PASS"
+        },
+        {
+          "gate": "格式与轨迹",
+          "status": "PASS"
+        },
+        {
+          "gate": "上下文预算",
+          "status": "PASS"
+        },
+        {
+          "gate": "采样效率",
+          "status": "PASS"
+        },
+        {
+          "gate": "结构化证据引用",
+          "status": "PASS"
+        },
+        {
+          "gate": "可训练栈与硬件冒烟",
+          "status": "BLOCKED"
+        }
+      ],
+      "preflight_freshness": [
+        {
+          "reward_identity_current": true,
+          "preflight_reward_version": "0.8.1",
+          "preflight_reward_config_sha256": "766b8c0b353d16ba5484f3d5fa9405f20fe2004430ab4eb5040195f91f30c78c",
+          "current_reward_version": "0.8.1",
+          "current_reward_config_sha256": "766b8c0b353d16ba5484f3d5fa9405f20fe2004430ab4eb5040195f91f30c78c"
+        }
+      ],
+      "truth_event_population": [
+        {
+          "split": "train",
+          "truth_event_cases": 894,
+          "by_sampling_stratum": {
+            "event": 779,
+            "switch": 41,
+            "pm10_primary": 74
+          },
+          "sampling_event_stratum_recall": 0.871365
+        },
+        {
+          "split": "val",
+          "truth_event_cases": 228,
+          "by_sampling_stratum": {
+            "pm10_primary": 14,
+            "event": 213,
+            "switch": 1
+          },
+          "sampling_event_stratum_recall": 0.934211
+        },
+        {
+          "split": "test",
+          "truth_event_cases": 27,
+          "by_sampling_stratum": {
+            "pm10_primary": 15,
+            "event": 12
+          },
+          "sampling_event_stratum_recall": 0.444444
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "expert_analysis",
+      "label": "Expert Analysis",
+      "path": "data/interim/efr.json",
+      "identity": {
+        "path": "data/interim/efr.json",
+        "exists": true,
+        "bytes": 62948,
+        "sha256": "41454580601b3ace9b19ed59ffc4f0fa1c463a641f511cb8b52a6a1ba9d70132"
+      },
+      "query": {
+        "engine": "sqlite",
+        "language": "sql",
+        "description": "Read-only audited project artifact; exact file identity is frozen below.",
+        "tables_used": [
+          "data/interim/efr.json"
+        ],
+        "executed_at": "2026-09-03T17:17:39Z",
+        "sql": "SELECT category, records, total_records, mention_rate FROM evidence_mentions ORDER BY mention_rate DESC LIMIT 5"
+      }
+    },
+    {
+      "id": "coverage",
+      "label": "Coverage",
+      "path": "data/interim/open_evidence_coverage.json",
+      "identity": {
+        "path": "data/interim/open_evidence_coverage.json",
+        "exists": true,
+        "bytes": 5084,
+        "sha256": "d03e7e4ceabec504186903b0560fa5fce43f9c9197fed9f586d9eea07395277f"
+      },
+      "query": {
+        "engine": "artifact",
+        "language": "json",
+        "description": "Read-only audited project artifact; exact file identity is frozen below.",
+        "tables_used": [
+          "data/interim/open_evidence_coverage.json"
+        ],
+        "executed_at": "2026-09-03T17:17:39Z"
+      }
+    },
+    {
+      "id": "expert_contract",
+      "label": "Expert Contract",
+      "path": "data/interim/expert_evidence_contract_audit.json",
+      "identity": {
+        "path": "data/interim/expert_evidence_contract_audit.json",
+        "exists": true,
+        "bytes": 6378,
+        "sha256": "8d466cf8f0622652cd8034f0493437cc701896356dd17ede6ea8149f6c2a9ef4"
+      },
+      "query": {
+        "engine": "artifact",
+        "language": "json",
+        "description": "Read-only audited project artifact; exact file identity is frozen below.",
+        "tables_used": [
+          "data/interim/expert_evidence_contract_audit.json"
+        ],
+        "executed_at": "2026-09-03T17:17:39Z"
+      }
+    },
+    {
+      "id": "spatial_ood_audit",
+      "label": "Spatial Ood Audit",
+      "path": "data/interim/spatial_ood_audit.json",
+      "identity": {
+        "path": "data/interim/spatial_ood_audit.json",
+        "exists": true,
+        "bytes": 33131,
+        "sha256": "9a3ab91b3bf3da174e6e62ebef2f5f44921bcc61df35cab29a5358c9fa8d888e"
+      },
+      "query": {
+        "engine": "artifact",
+        "language": "json",
+        "description": "Read-only audited project artifact; exact file identity is frozen below.",
+        "tables_used": [
+          "data/interim/spatial_ood_audit.json"
+        ],
+        "executed_at": "2026-09-03T17:17:39Z"
+      }
+    },
+    {
+      "id": "probe",
+      "label": "Probe",
+      "path": "data/interim/probe_open_evidence_v079_n50_g8.json",
+      "identity": {
+        "path": "data/interim/probe_open_evidence_v079_n50_g8.json",
+        "exists": true,
+        "bytes": 4528229,
+        "sha256": "0e97ada4eeed31c8bb7f0d796c96020cba3b6c19c051b6fd30dc2f9c4da3e51b"
+      },
+      "query": {
+        "engine": "artifact",
+        "language": "json",
+        "description": "Read-only audited project artifact; exact file identity is frozen below.",
+        "tables_used": [
+          "data/interim/probe_open_evidence_v079_n50_g8.json"
+        ],
+        "executed_at": "2026-09-03T17:17:39Z"
+      }
+    },
+    {
+      "id": "tabular",
+      "label": "Tabular",
+      "path": "data/interim/eval_tabular_open_evidence_v079.json",
+      "identity": {
+        "path": "data/interim/eval_tabular_open_evidence_v079.json",
+        "exists": true,
+        "bytes": 18754143,
+        "sha256": "414226e2ca0161a897a7249eb97955ca76e889ce7db5b35a2f2ba3c4557203a0"
+      },
+      "query": {
+        "engine": "artifact",
+        "language": "json",
+        "description": "Read-only audited project artifact; exact file identity is frozen below.",
+        "tables_used": [
+          "data/interim/eval_tabular_open_evidence_v079.json"
+        ],
+        "executed_at": "2026-09-03T17:17:39Z"
+      }
+    },
+    {
+      "id": "preflight",
+      "label": "Preflight",
+      "path": "data/interim/rl_preflight.json",
+      "identity": {
+        "path": "data/interim/rl_preflight.json",
+        "exists": true,
+        "bytes": 514016,
+        "sha256": "edf3286006c1554a86d2e6f5a3197ea694b562848f0c27d008fe861d918d1e8f"
+      },
+      "query": {
+        "engine": "artifact",
+        "language": "json",
+        "description": "Read-only audited project artifact; exact file identity is frozen below.",
+        "tables_used": [
+          "data/interim/rl_preflight.json"
+        ],
+        "executed_at": "2026-09-03T17:17:39Z"
+      }
+    },
+    {
+      "id": "training_smoke",
+      "label": "Training Smoke",
+      "path": "data/interim/training_smoke.json",
+      "identity": {
+        "path": "data/interim/training_smoke.json",
+        "exists": false
+      },
+      "query": {
+        "engine": "artifact",
+        "language": "json",
+        "description": "Read-only audited project artifact; exact file identity is frozen below.",
+        "tables_used": [
+          "data/interim/training_smoke.json"
+        ],
+        "executed_at": "2026-09-03T17:17:39Z"
+      }
+    },
+    {
+      "id": "reward_contract",
+      "label": "Reward Contract",
+      "path": "data/interim/reward_contract_audit.json",
+      "identity": {
+        "path": "data/interim/reward_contract_audit.json",
+        "exists": true,
+        "bytes": 5085,
+        "sha256": "2738bbd105d1b26657196ef973561224753f29239c9b1f3fd018c4daa6b0dae5"
+      },
+      "query": {
+        "engine": "artifact",
+        "language": "json",
+        "description": "Read-only audited project artifact; exact file identity is frozen below.",
+        "tables_used": [
+          "data/interim/reward_contract_audit.json"
+        ],
+        "executed_at": "2026-09-03T17:17:39Z"
+      }
+    },
+    {
+      "id": "reward_sensitivity",
+      "label": "Reward Sensitivity",
+      "path": "data/interim/reward_weight_sensitivity_v079.json",
+      "identity": {
+        "path": "data/interim/reward_weight_sensitivity_v079.json",
+        "exists": true,
+        "bytes": 98321,
+        "sha256": "1e67c55eeb85dd59778deff7626edfbe423f57212a16271c719529189de69f7b"
+      },
+      "query": {
+        "engine": "artifact",
+        "language": "json",
+        "description": "Read-only audited project artifact; exact file identity is frozen below.",
+        "tables_used": [
+          "data/interim/reward_weight_sensitivity_v079.json"
+        ],
+        "executed_at": "2026-09-03T17:17:39Z"
+      }
+    },
+    {
+      "id": "verl_runtime_contract",
+      "label": "Verl Runtime Contract",
+      "path": "data/interim/verl_runtime_contract.json",
+      "identity": {
+        "path": "data/interim/verl_runtime_contract.json",
+        "exists": true,
+        "bytes": 4693,
+        "sha256": "6d9e319f2eeab9f5ed0398a088474cc6d6c5dcc4302a56a4887ce23ad1f2dba9"
+      },
+      "query": {
+        "engine": "artifact",
+        "language": "json",
+        "description": "Read-only audited project artifact; exact file identity is frozen below.",
+        "tables_used": [
+          "data/interim/verl_runtime_contract.json"
+        ],
+        "executed_at": "2026-09-03T17:17:39Z"
+      }
+    },
+    {
+      "id": "guidance_comparison",
+      "label": "Guidance Comparison",
+      "path": "data/interim/compare_v079_frozen_vs_guidance.json",
+      "identity": {
+        "path": "data/interim/compare_v079_frozen_vs_guidance.json",
+        "exists": true,
+        "bytes": 15128,
+        "sha256": "e43078a56a60ebc18e79fa7cfe31c3f6a6b6a3c5cc635987ecacbe6447a7eb46"
+      },
+      "query": {
+        "engine": "artifact",
+        "language": "json",
+        "description": "Read-only audited project artifact; exact file identity is frozen below.",
+        "tables_used": [
+          "data/interim/compare_v079_frozen_vs_guidance.json"
+        ],
+        "executed_at": "2026-09-03T17:17:39Z"
+      }
+    },
+    {
+      "id": "tabular_comparison",
+      "label": "Tabular Comparison",
+      "path": "data/interim/compare_v079_frozen_vs_tabular.json",
+      "identity": {
+        "path": "data/interim/compare_v079_frozen_vs_tabular.json",
+        "exists": true,
+        "bytes": 15352,
+        "sha256": "596627e316bdb10aed7b5d28756a59f114bbb7432d526b18714bd9ea0799b23c"
+      },
+      "query": {
+        "engine": "artifact",
+        "language": "json",
+        "description": "Read-only audited project artifact; exact file identity is frozen below.",
+        "tables_used": [
+          "data/interim/compare_v079_frozen_vs_tabular.json"
+        ],
+        "executed_at": "2026-09-03T17:17:39Z"
+      }
+    }
+  ]
+}

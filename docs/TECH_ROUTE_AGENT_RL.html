@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>从问答微调到 Agent RL｜技术路线与当前进展</title>
+  <style>
+    :root {
+      --ink: #132238;
+      --muted: #617087;
+      --line: #dbe3ee;
+      --paper: #ffffff;
+      --canvas: #f3f6fa;
+      --navy: #173f6d;
+      --blue: #2767c9;
+      --blue-soft: #eaf2ff;
+      --teal: #087d72;
+      --teal-soft: #e6f7f3;
+      --amber: #b66b0d;
+      --amber-soft: #fff4df;
+      --red: #b94343;
+      --red-soft: #fff0f0;
+      --shadow: 0 16px 42px rgba(26, 49, 82, .09);
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 0%, rgba(39, 103, 201, .10), transparent 32rem),
+        radial-gradient(circle at 92% 4%, rgba(8, 125, 114, .09), transparent 28rem),
+        var(--canvas);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+      line-height: 1.55;
+    }
+
+    .page {
+      width: min(1160px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 50px 0 56px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 42px 44px;
+      border: 1px solid rgba(255,255,255,.7);
+      border-radius: 28px;
+      color: #fff;
+      background: linear-gradient(135deg, #102f53 0%, #1d5e91 62%, #087d72 125%);
+      box-shadow: 0 24px 70px rgba(18, 57, 94, .20);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 370px;
+      height: 370px;
+      right: -150px;
+      top: -210px;
+      border: 68px solid rgba(255,255,255,.08);
+      border-radius: 50%;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: #aee9df;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 830px;
+      margin: 0;
+      font-size: clamp(34px, 5vw, 60px);
+      line-height: 1.12;
+      letter-spacing: -.035em;
+    }
+
+    .hero-copy {
+      max-width: 850px;
+      margin: 18px 0 0;
+      color: rgba(255,255,255,.82);
+      font-size: 18px;
+    }
+
+    .hero-foot {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 28px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      padding: 6px 12px;
+      border: 1px solid rgba(255,255,255,.22);
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      color: rgba(255,255,255,.92);
+      font-size: 13px;
+      font-weight: 700;
+      backdrop-filter: blur(8px);
+    }
+
+    .pill::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      margin-right: 8px;
+      border-radius: 50%;
+      background: #7ce7c8;
+      box-shadow: 0 0 0 4px rgba(124,231,200,.14);
+    }
+
+    section { margin-top: 34px; }
+
+    .section-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+      margin: 0 3px 14px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.2;
+      letter-spacing: -.02em;
+    }
+
+    .section-note {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .shift {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 60px minmax(0, 1.18fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .route-card,
+    .comparison,
+    .status-card,
+    .next,
+    .bottom-line {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .route-card { padding: 27px; }
+
+    .route-card.current {
+      border-color: #b6ddd7;
+      background: linear-gradient(150deg, #fff 0%, #f1fbf9 100%);
+    }
+
+    .route-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 21px;
+    }
+
+    .route-label strong { font-size: 17px; }
+
+    .route-tag {
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: #edf1f6;
+      color: #5c6a7d;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .06em;
+    }
+
+    .current .route-tag {
+      color: var(--teal);
+      background: var(--teal-soft);
+    }
+
+    .flow {
+      display: grid;
+      gap: 9px;
+    }
+
+    .flow-step {
+      position: relative;
+      padding: 12px 14px 12px 39px;
+      border: 1px solid #e4e9f0;
+      border-radius: 12px;
+      background: rgba(255,255,255,.84);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .flow-step::before {
+      content: attr(data-n);
+      position: absolute;
+      left: 12px;
+      top: 12px;
+      display: grid;
+      place-items: center;
+      width: 19px;
+      height: 19px;
+      border-radius: 50%;
+      color: #fff;
+      background: #8090a4;
+      font-size: 10px;
+      font-weight: 900;
+    }
+
+    .current .flow-step::before { background: var(--teal); }
+
+    .flow-step:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      left: 21px;
+      bottom: -10px;
+      width: 2px;
+      height: 9px;
+      background: #cad4df;
+    }
+
+    .route-summary {
+      margin: 18px 0 0;
+      padding-top: 16px;
+      border-top: 1px dashed #ccd6e2;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .route-summary b { color: var(--ink); }
+
+    .big-arrow {
+      display: grid;
+      place-items: center;
+      color: var(--blue);
+      font-size: 39px;
+      font-weight: 900;
+    }
+
+    .comparison { overflow: hidden; }
+
+    .compare-row {
+      display: grid;
+      grid-template-columns: 150px 1fr 1.16fr;
+      min-height: 76px;
+      border-top: 1px solid var(--line);
+    }
+
+    .compare-row:first-child { border-top: 0; }
+
+    .compare-row > div {
+      display: flex;
+      align-items: center;
+      padding: 16px 20px;
+    }
+
+    .compare-row > div + div { border-left: 1px solid var(--line); }
+
+    .compare-head {
+      min-height: 56px;
+      color: #fff;
+      background: var(--navy);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .03em;
+    }
+
+    .compare-head > div:nth-child(3) { background: var(--teal); }
+
+    .dimension {
+      color: var(--muted);
+      background: #f8fafc;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .old-cell { color: #526176; }
+
+    .new-cell {
+      color: #1a4e4a;
+      background: rgba(230, 247, 243, .48);
+      font-weight: 650;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .status-card {
+      position: relative;
+      overflow: hidden;
+      padding: 22px 20px 20px;
+      box-shadow: 0 10px 30px rgba(26, 49, 82, .06);
+    }
+
+    .status-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 4px;
+      background: var(--teal);
+    }
+
+    .status-card.todo::before { background: var(--amber); }
+
+    .state {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 15px;
+      color: var(--teal);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+
+    .state::before {
+      content: "✓";
+      display: grid;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--teal);
+      font-size: 11px;
+    }
+
+    .todo .state { color: var(--amber); }
+    .todo .state::before { content: "→"; background: var(--amber); }
+
+    .status-card h3 {
+      margin: 0 0 8px;
+      font-size: 17px;
+    }
+
+    .metric {
+      margin: 0 0 8px;
+      color: var(--navy);
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: -.035em;
+    }
+
+    .metric small {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .status-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .snapshot {
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 16px;
+    }
+
+    .bottom-line {
+      padding: 28px;
+      color: #fff;
+      border: 0;
+      background: linear-gradient(130deg, #173f6d, #245f8e);
+    }
+
+    .bottom-line h3 {
+      margin: 0 0 11px;
+      font-size: 21px;
+    }
+
+    .bottom-line p {
+      margin: 0;
+      color: rgba(255,255,255,.80);
+    }
+
+    .highlight {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .highlight > div {
+      padding: 13px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 12px;
+      background: rgba(255,255,255,.08);
+    }
+
+    .highlight strong {
+      display: block;
+      font-size: 23px;
+    }
+
+    .highlight span {
+      color: rgba(255,255,255,.68);
+      font-size: 12px;
+    }
+
+    .next { padding: 25px 26px; }
+
+    .next h3 { margin: 0 0 16px; font-size: 18px; }
+
+    .next ol {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      counter-reset: step;
+    }
+
+    .next li {
+      position: relative;
+      padding-left: 37px;
+      color: var(--muted);
+      font-size: 13px;
+      counter-increment: step;
+    }
+
+    .next li::before {
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: -1px;
+      display: grid;
+      place-items: center;
+      width: 25px;
+      height: 25px;
+      border-radius: 8px;
+      color: var(--blue);
+      background: var(--blue-soft);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .next b { color: var(--ink); }
+
+    .footnote {
+      margin: 27px 4px 0;
+      color: #738096;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .footnote code {
+      color: #536278;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    @media (max-width: 900px) {
+      .status-grid { grid-template-columns: 1fr 1fr; }
+      .snapshot { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 720px) {
+      .page { width: min(100% - 22px, 1160px); padding-top: 18px; }
+      .hero { padding: 30px 24px; border-radius: 22px; }
+      .hero-copy { font-size: 16px; }
+      .section-head { align-items: flex-start; flex-direction: column; gap: 6px; }
+      .shift { grid-template-columns: 1fr; }
+      .big-arrow { min-height: 34px; transform: rotate(90deg); }
+      .compare-row { grid-template-columns: 96px 1fr; }
+      .compare-row > div:nth-child(3) { grid-column: 2; }
+      .compare-row:not(.compare-head) > div:nth-child(3) { border-top: 1px dashed var(--line); }
+      .compare-head > div:nth-child(3) { display: none; }
+      .compare-row > div { padding: 14px; }
+      .status-grid { grid-template-columns: 1fr; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .page { width: 100%; padding: 0; }
+      .hero, .route-card, .comparison, .status-card, .next, .bottom-line { box-shadow: none; }
+      section { break-inside: avoid; margin-top: 22px; }
+      .hero { border-radius: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <p class="eyebrow">技术路线说明 · 2026-09-01</p>
+      <h1>从“学习答案”<br>到“学习预报决策”</h1>
+      <p class="hero-copy">
+        参照 JJJ_ATMO 的问答微调与单次生成路线，当前方案把模型放进可交互、可评分、可回放的预报环境，
+        让策略学习如何取证、综合、订正并提交最终预报。
+      </p>
+      <div class="hero-foot">
+        <span class="pill">Agent RL 为能力训练主线</span>
+        <span class="pill">规则化结果奖励，不用 LLM Judge</span>
+        <span class="pill">当前处于数据合同与开训门禁收尾</span>
+      </div>
+    </header>
+
+    <section aria-labelledby="shift-title">
+      <div class="section-head">
+        <h2 id="shift-title">训练对象发生了根本变化</h2>
+        <p class="section-note">不是换一个训练算法，而是把“样本”改造成“决策过程”</p>
+      </div>
+      <div class="shift">
+        <article class="route-card">
+          <div class="route-label">
+            <strong>JJJ_ATMO 参考路线</strong>
+            <span class="route-tag">回答级训练</span>
+          </div>
+          <div class="flow" aria-label="JJJ_ATMO 参考训练流程">
+            <div class="flow-step" data-n="1">预先整理输入与专家目标</div>
+            <div class="flow-step" data-n="2">一次性拼入 prompt</div>
+            <div class="flow-step" data-n="3">生成单个结构化回答</div>
+            <div class="flow-step" data-n="4">SFT 模仿；可选答案级 GRPO</div>
+          </div>
+          <p class="route-summary"><b>模型主要学习：</b>给定材料后，应该输出什么答案。</p>
+        </article>
+
+        <div class="big-arrow" aria-hidden="true">→</div>
+
+        <article class="route-card current">
+          <div class="route-label">
+            <strong>当前 Agent RL 路线</strong>
+            <span class="route-tag">Episode 级训练</span>
+          </div>
+          <div class="flow" aria-label="当前 Agent RL 训练流程">
+            <div class="flow-step" data-n="1">进入起报时刻受控任务环境</div>
+            <div class="flow-step" data-n="2">按需调用形势、污染、实况与模式工具</div>
+            <div class="flow-step" data-n="3">多轮综合、比较与订正</div>
+            <div class="flow-step" data-n="4">提交结构化预报，按观测结果给 reward</div>
+          </div>
+          <p class="route-summary"><b>模型主要学习：</b>为了得到更好的预报结果，应该查什么、怎么判断、最后如何决策。</p>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="compare-title">
+      <div class="section-head">
+        <h2 id="compare-title">两条技术路线的直接区别</h2>
+        <p class="section-note">只比较做法，不比较研究范围</p>
+      </div>
+      <div class="comparison" role="table" aria-label="技术路线对照表">
+        <div class="compare-row compare-head" role="row">
+          <div role="columnheader">维度</div>
+          <div role="columnheader">JJJ_ATMO 参考实现</div>
+          <div role="columnheader">当前 Agent RL 实现</div>
+        </div>
+        <div class="compare-row" role="row">
+          <div class="dimension" role="rowheader">训练单位</div>
+          <div class="old-cell" role="cell">一组 messages / 一个问答目标</div>
+          <div class="new-cell" role="cell">一个起报时次 / 一条多轮工具 episode</div>
+        </div>
+        <div class="compare-row" role="row">
+          <div class="dimension" role="rowheader">证据进入方式</div>
+          <div class="old-cell" role="cell">训练前预组装，作为固定 prompt 输入</div>
+          <div class="new-cell" role="cell">环境按时间门禁注册工具，由 agent 自主按需获取</div>
+        </div>
+        <div class="compare-row" role="row">
+          <div class="dimension" role="rowheader">核心学习目标</div>
+          <div class="old-cell" role="cell">复现专家回答或直接优化单次 completion</div>
+          <div class="new-cell" role="cell">同时优化信息获取策略、推理轨迹与最终预报决策</div>
+        </div>
+        <div class="compare-row" role="row">
+          <div class="dimension" role="rowheader">SFT 的角色</div>
+          <div class="old-cell" role="cell">承担知识与答案行为的主要监督</div>
+          <div class="new-cell" role="cell">仅在必要时教格式与工具协议；预报能力由结果 RL 学习</div>
+        </div>
+        <div class="compare-row" role="row">
+          <div class="dimension" role="rowheader">奖励信号</div>
+          <div class="old-cell" role="cell">PM2.5 MAE、重污染小时 F1、阶段匹配与格式分</div>
+          <div class="new-cell" role="cell">训练分含低权重 grounding；毕业分只含 AQI、硬事件、区间、转折与首污结果</div>
+        </div>
+        <div class="compare-row" role="row">
+          <div class="dimension" role="rowheader">交互行为</div>
+          <div class="old-cell" role="cell">单次生成，模型不改变后续可见信息</div>
+          <div class="new-cell" role="cell">工具调用改变后续上下文；错误提交可反馈、自纠并消耗步数</div>
+        </div>
+        <div class="compare-row" role="row">
+          <div class="dimension" role="rowheader">可验证性</div>
+          <div class="old-cell" role="cell">校验输出 JSON 与答案级指标</div>
+          <div class="new-cell" role="cell">校验每次调用、时间可见性、提交 schema、reward 与数据哈希</div>
+        </div>
+        <div class="compare-row" role="row">
+          <div class="dimension" role="rowheader">专家材料的作用</div>
+          <div class="old-cell" role="cell">可直接形成问答训练目标</div>
+          <div class="new-cell" role="cell">用于抽象预报流程、工具与机制；不作为策略需要复述的答案</div>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="status-title">
+      <div class="section-head">
+        <h2 id="status-title">现在做到什么程度</h2>
+        <p class="section-note">核心合同已实现；高频开放证据与正式 v0.7 探针仍在收尾，尚未产生 RL 训练后的模型</p>
+      </div>
+      <div class="status-grid">
+        <article class="status-card">
+          <div class="state">RUNNING</div>
+          <h3>数据 · 证据 · Reward</h3>
+          <p class="metric">7,548 <small>个 episode 已有六污染物实况</small></p>
+          <p>高频 GFS/IFS、辐射、CAMS 三通道、火点和静态源按冻结清单下载；只有全量审计后才重挂新证据。</p>
+        </article>
+        <article class="status-card">
+          <div class="state">CODE PASS</div>
+          <h3>格式与轨迹</h3>
+          <p class="metric">135 <small>项 Harness 回归测试通过</small></p>
+          <p>schema v0.5.6 强制 PM2.5/PM10/O3 区间与 daily/process 连续污染段、峰值一致；未校准的 categorical confidence 已退出策略输出，是否跳过 SFT 由新证据上的 50×8 探针决定。</p>
+        </article>
+        <article class="status-card">
+          <div class="state">PENDING</div>
+          <h3>RL 可学信号</h3>
+          <p class="metric">50×8 <small>正式 frozen 探针</small></p>
+          <p>reward v0.7.9 分离训练分与公平比较分，超宽区间不再有奖励保底，并拒绝缺失值、头部矛盾、无效或相互矛盾的结构化引用冒充证据；需在最终附件上确认格式、两类引用、上下文预算与有效 group 率。</p>
+        </article>
+        <article class="status-card todo">
+          <div class="state">NEXT</div>
+          <h3>可训练闭环</h3>
+          <p class="metric">0 <small>正式 RL 训练步</small></p>
+          <p>尚需接通 trainable base、veRL/PEFT、多轮 rollout 权重同步、工具 token mask 与 checkpoint 重载冒烟。</p>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="snapshot-title">
+      <div class="section-head">
+        <h2 id="snapshot-title">当前科学判断与下一步</h2>
+        <p class="section-note">当前状态不是“训练完成”，而是“数据与评分合同已接近冻结”</p>
+      </div>
+      <div class="snapshot">
+        <article class="bottom-line">
+          <h3>一句话状态</h3>
+          <p>
+            Harness 的数据、工具、结构化提交、训练 reward、结果分和硬指标已经形成可执行合同；
+            还需全量证据审计、50×8 正式探针和 trainable policy 冒烟三道实测，不能提前宣称开训门禁已过。
+          </p>
+          <div class="highlight">
+            <div>
+              <strong>0.7.9</strong>
+              <span>当前 reward 合同；旧曲线不可混比</span>
+            </div>
+            <div>
+              <strong>24K</strong>
+              <span>32K 上下文下的单次 prompt 安全门禁</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="next">
+          <h3>接下来按成功率排序</h3>
+          <ol>
+            <li><b>完成全量附件与专家证据合同：</b>原始、派生、case attachment 和时间门禁均为 100%。</li>
+            <li><b>跑 reward-v0.7 正式基线/探针：</b>比较统一用 outcome composite，并同时报告硬指标。</li>
+            <li><b>1.7B / 4B LoRA，50–200 step 冒烟：</b>验证损失有限、策略权重同步、工具 token 不进梯度。</li>
+            <li><b>通过毕业门禁后再扩 8B：</b>独立验证超指导、事件硬 CSI 过关，再挑战强监督基线。</li>
+          </ol>
+        </article>
+      </div>
+    </section>
+
+    <footer class="footnote">
+      状态截点：2026-09-01 ｜ 依据：<code>JJJ_ATMO/docs/training_runbook.md</code>、
+      <code>docs/TRAINING_DESIGN.md</code>、<code>docs/OPEN_EVIDENCE_DESIGN.md</code>、
+      <code>data/interim/rl_preflight.json</code>
+    </footer>
+  </main>
+</body>
+</html>

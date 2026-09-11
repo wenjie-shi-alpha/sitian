@@ -1,0 +1,230 @@
+contract:
+  generator: scripts/build_verl_tool_config.py
+  source: ForecastEnv.tool_specs(openai)
+  note: case-specific nested submit schema remains in the task brief and executable
+    validator
+tools:
+- class_name: sitian.integrations.verl_runtime.SitianForecastTool
+  config:
+    type: native
+    tool_name: list_data_assets
+  tool_schema:
+    type: function
+    function:
+      name: list_data_assets
+      description: 列出本个例可用的数据资产（实况污染物/时段、诊断日期、模式指导源）。
+      parameters:
+        type: object
+        properties: {}
+        required: []
+- class_name: sitian.integrations.verl_runtime.SitianForecastTool
+  config:
+    type: native
+    tool_name: get_observations
+  tool_schema:
+    type: function
+    function:
+      name: get_observations
+      description: 查询起报前实况小时浓度序列（按区域）。
+      parameters:
+        type: object
+        properties:
+          pollutant:
+            type: string
+            enum:
+            - PM2.5
+            - PM10
+            - O3
+            - SO2
+            - NO2
+            - CO
+            description: 默认 PM2.5
+          region:
+            type:
+            - string
+            - 'null'
+            description: 缺省返回全部区域
+          last_hours:
+            type: integer
+            description: 默认 48
+          stride:
+            type: integer
+            description: 抽稀步长小时，默认 3
+        required: []
+- class_name: sitian.integrations.verl_runtime.SitianForecastTool
+  config:
+    type: native
+    tool_name: get_diagnostics
+  tool_schema:
+    type: function
+    function:
+      name: get_diagnostics
+      description: 查询逐日污染气象诊断特征（未来日为数值模式派生，属合法指导信息）。
+      parameters:
+        type: object
+        properties:
+          date:
+            type:
+            - string
+            - 'null'
+            description: ISO 日期；缺省返回全部
+        required: []
+- class_name: sitian.integrations.verl_runtime.SitianForecastTool
+  config:
+    type: native
+    tool_name: get_model_guidance
+  tool_schema:
+    type: function
+    function:
+      name: get_model_guidance
+      description: 查询个例中真实可用的逐日模式指导。source 缺省返回全部；不要猜测未列出的 EC 等名称。提交引用时 evidence.type
+        使用 model_guidance，不得写工具名。
+      parameters:
+        type: object
+        properties:
+          source:
+            type:
+            - string
+            - 'null'
+            description: 缺省返回全部源
+        required: []
+- class_name: sitian.integrations.verl_runtime.SitianForecastTool
+  config:
+    type: native
+    tool_name: get_assessment
+  tool_schema:
+    type: function
+    function:
+      name: get_assessment
+      description: 获取确定性推导的客观信号汇总：实况 24h 趋势、逐日气象信号旗标（冷空气/静稳/降水/O3 潜力，判据固定）、模式指导多源分歧、气候态分位。只含事实信号，不含预报结论。引用本工具结论时按信号来源选择
+        evidence type（趋势→observation，气象信号→diagnostic/synoptic，指导分歧→model_guidance）。
+      parameters:
+        type: object
+        properties: {}
+        required: []
+- class_name: sitian.integrations.verl_runtime.SitianForecastTool
+  config:
+    type: native
+    tool_name: submit_forecast
+  tool_schema:
+    type: function
+    function:
+      name: submit_forecast
+      description: 提交结构化预报，结束本次任务。必须在预算内提交且通过校验。evidence.type 必须使用 schema 枚举；pollution_evidence、assessment
+        等工具名不是合法 type。
+      parameters:
+        type: object
+        properties:
+          forecast:
+            type: object
+            description: 结构化预报对象；按任务简报 forecast_format 的结构组织（daily 为区间表），issue_date/region/daily
+              日期与长度按当前任务简报填写。daily 必须含AQI等级、首要污染物、PM2.5/PM10/O3区间；evidence 引用工具返回的evidence_ref、JSON
+              Pointer field 与精确 value。
+        required:
+        - forecast
+- class_name: sitian.integrations.verl_runtime.SitianForecastTool
+  config:
+    type: native
+    tool_name: get_process_evidence
+  tool_schema:
+    type: function
+    function:
+      name: get_process_evidence
+      description: 查询起报时可见的紧凑过程总览：六项污染初态、6/12h 低层风与稳定度轨迹、逐日边界层/湿度/降水/云/温度、上游候选和污染指导锚点。先用此工具判断需要哪个专题工具；返回是可复算信号，不是预报结论。
+      parameters:
+        type: object
+        properties: {}
+        required: []
+- class_name: sitian.integrations.verl_runtime.SitianForecastTool
+  config:
+    type: native
+    tool_name: get_synoptic_evidence
+  tool_schema:
+    type: function
+    function:
+      name: get_synoptic_evidence
+      description: 查询过去—当前—未来天气形势证据：环流、输送、稳定度、扩散条件及模式分歧。提交引用时 evidence.type 使用 synoptic
+        或 diagnostic，不得写工具名。
+      parameters:
+        type: object
+        properties:
+          source:
+            type:
+            - string
+            - 'null'
+            description: gfs/ifs；缺省返回全部
+          valid_time:
+            type:
+            - string
+            - 'null'
+            description: ISO UTC；缺省返回全部
+          detail:
+            type: string
+            enum:
+            - summary
+            - full
+            description: 默认 summary；full 用于审计或定点深挖
+        required: []
+- class_name: sitian.integrations.verl_runtime.SitianForecastTool
+  config:
+    type: native
+    tool_name: get_pollution_evidence
+  tool_schema:
+    type: function
+    function:
+      name: get_pollution_evidence
+      description: 查询污染机理证据：气溶胶类型/AOD、气态污染物、沙尘与上风向火点。提交引用时 composition→model_guidance、fires→observation、source_context→diagnostic；pollution_evidence
+        不是合法 evidence.type。
+      parameters:
+        type: object
+        properties:
+          kind:
+            type:
+            - string
+            - 'null'
+            description: composition/fires/source_context；缺省返回全部
+          detail:
+            type: string
+            enum:
+            - summary
+            - full
+            description: 默认 summary；full 返回全部数值与来源 hash
+        required: []
+- class_name: sitian.integrations.verl_runtime.SitianForecastTool
+  config:
+    type: native
+    tool_name: get_guidance_bias
+  tool_schema:
+    type: function
+    function:
+      name: get_guidance_bias
+      description: 查询起报前已完成验证的历史模式指导偏差、误差分位和事件漏报/空报率。返回聚合信号，不返回单条真值，也不直接给订正结论。提交引用使用
+        model_guidance，不得把历史偏差当作当前真值。
+      parameters:
+        type: object
+        properties:
+          source:
+            type:
+            - string
+            - 'null'
+            description: 可选指导源；缺省返回全部
+          pollutant:
+            type:
+            - string
+            - 'null'
+            enum:
+            - PM2.5
+            - PM10
+            - O3
+            - null
+            description: 可选污染物；缺省返回全部
+          window_days:
+            type: integer
+            description: 历史窗口，默认365天
+          detail:
+            type: string
+            enum:
+            - summary
+            - full
+            description: 默认summary；full用于审计回退链和时间窗口
+        required: []

@@ -1,0 +1,675 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "司天污染预报 Agent：科学定位与 96G 云端开训审计",
+    "description": "Technical audit of scientific claims, data, runtime parity and cloud training readiness; no training launched.",
+    "generatedAt": "2026-09-07T12:03:32.978808+00:00",
+    "cards": [],
+    "charts": [
+      {
+        "id": "event_coverage",
+        "title": "验证与终评集合的事件 case 数",
+        "subtitle": "事件：未来 5 天至少一天 AQI 等级 ≥4；整城终评属于时间终评子集，各柱不可相加。",
+        "type": "bar",
+        "dataset": "event_coverage",
+        "sourceId": "audit",
+        "valueFormat": "number",
+        "encodings": {
+          "x": {
+            "field": "split",
+            "type": "nominal",
+            "label": "集合用途"
+          },
+          "y": {
+            "field": "event_cases",
+            "type": "quantitative",
+            "label": "事件 case 数",
+            "format": "number"
+          },
+          "tooltip": [
+            {
+              "field": "total_cases",
+              "type": "quantitative",
+              "label": "全部 case"
+            },
+            {
+              "field": "issue_dates",
+              "type": "quantitative",
+              "label": "全部起报日"
+            }
+          ]
+        }
+      }
+    ],
+    "sources": [
+      {
+        "id": "audit",
+        "label": "2026-09-07 独立复核",
+        "path": "docs/reports/rl_readiness_20260907/evidence.json",
+        "identity": {
+          "path": "docs/reports/rl_readiness_20260907/evidence.json",
+          "bytes": 15103,
+          "sha256": "d4881c78a04272e8e3dbed5702e45c9a141e4e80fca2ecf89b4fe8512c7b3cd3"
+        },
+        "query": {
+          "engine": "sqlite",
+          "language": "sql",
+          "description": "SQLite JSON query over evidence.json bound as :evidence_json. The upstream full-case counting and provenance checks are in audit.py; this query selects the four reviewed event populations.",
+          "tables_used": [
+            "docs/reports/rl_readiness_20260907/evidence.json"
+          ],
+          "executed_at": "2026-09-07T11:45:46.438272+00:00",
+          "sql": "SELECT CASE key\n  WHEN 'val' THEN '暖季验证' WHEN 'winter_selection' THEN '冬季选择'\n  WHEN 'test' THEN '时间终评' WHEN 'ood_test' THEN '整城终评' END AS split,\n  json_extract(value, '$.truth_event_cases') AS event_cases,\n  json_extract(value, '$.cases') AS total_cases,\n  json_extract(value, '$.issue_dates') AS issue_dates\nFROM json_each(:evidence_json, '$.profiles')\nWHERE key IN ('val', 'winter_selection', 'test', 'ood_test')\nORDER BY CASE key WHEN 'val' THEN 1 WHEN 'winter_selection' THEN 2\n  WHEN 'test' THEN 3 WHEN 'ood_test' THEN 4 END"
+        }
+      },
+      {
+        "id": "preflight",
+        "label": "本次重新执行的开训检查",
+        "path": "data/interim/rl_preflight_audit_20260907.json",
+        "identity": {
+          "path": "data/interim/rl_preflight_audit_20260907.json",
+          "bytes": 458125,
+          "sha256": "b2427d3aa9e51030f6693d36ad8e14f74413881f19b72d7fba2d2b38b250c021"
+        },
+        "query": {
+          "engine": "python",
+          "language": "python",
+          "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+          "tables_used": [
+            "data/interim/rl_preflight_audit_20260907.json"
+          ],
+          "executed_at": "2026-09-07T11:45:46.438272+00:00"
+        }
+      },
+      {
+        "id": "expert",
+        "label": "本次全量专家证据合同审计",
+        "path": "data/interim/expert_evidence_audit_20260907.json",
+        "identity": {
+          "path": "data/interim/expert_evidence_audit_20260907.json",
+          "bytes": 6378,
+          "sha256": "5b312b961c8fa3614e548dbdd43e35e23e933e66c1aa18a4f55d6fdc879f1a47"
+        },
+        "query": {
+          "engine": "python",
+          "language": "python",
+          "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+          "tables_used": [
+            "data/interim/expert_evidence_audit_20260907.json"
+          ],
+          "executed_at": "2026-09-07T11:45:46.438272+00:00"
+        }
+      },
+      {
+        "id": "reward",
+        "label": "本次奖励不变量审计",
+        "path": "data/interim/reward_contract_audit_20260907.json",
+        "identity": {
+          "path": "data/interim/reward_contract_audit_20260907.json",
+          "bytes": 5085,
+          "sha256": "2738bbd105d1b26657196ef973561224753f29239c9b1f3fd018c4daa6b0dae5"
+        },
+        "query": {
+          "engine": "python",
+          "language": "python",
+          "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+          "tables_used": [
+            "data/interim/reward_contract_audit_20260907.json"
+          ],
+          "executed_at": "2026-09-07T11:45:46.438272+00:00"
+        }
+      },
+      {
+        "id": "cams",
+        "label": "本次重算：冻结策略对 CAMS",
+        "path": "docs/reports/rl_readiness_20260907/compare_cams.json",
+        "identity": {
+          "path": "docs/reports/rl_readiness_20260907/compare_cams.json",
+          "bytes": 15128,
+          "sha256": "e43078a56a60ebc18e79fa7cfe31c3f6a6b6a3c5cc635987ecacbe6447a7eb46"
+        },
+        "query": {
+          "engine": "python",
+          "language": "python",
+          "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+          "tables_used": [
+            "docs/reports/rl_readiness_20260907/compare_cams.json"
+          ],
+          "executed_at": "2026-09-07T11:45:46.438272+00:00"
+        }
+      },
+      {
+        "id": "tabular",
+        "label": "本次重算：冻结策略对同信息集 tabular",
+        "path": "docs/reports/rl_readiness_20260907/compare_tabular.json",
+        "identity": {
+          "path": "docs/reports/rl_readiness_20260907/compare_tabular.json",
+          "bytes": 15352,
+          "sha256": "596627e316bdb10aed7b5d28756a59f114bbb7432d526b18714bd9ea0799b23c"
+        },
+        "query": {
+          "engine": "python",
+          "language": "python",
+          "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+          "tables_used": [
+            "docs/reports/rl_readiness_20260907/compare_tabular.json"
+          ],
+          "executed_at": "2026-09-07T11:45:46.438272+00:00"
+        }
+      },
+      {
+        "id": "calendar",
+        "label": "5 日时间块敏感性检查",
+        "path": "docs/reports/rl_readiness_20260907/compare_cams_calendar5.json",
+        "identity": {
+          "path": "docs/reports/rl_readiness_20260907/compare_cams_calendar5.json",
+          "bytes": 15409,
+          "sha256": "19d6be1acf5cd2502afc3a7684a4beb6352c48b5fc8af7e8c091b84063f71537"
+        },
+        "query": {
+          "engine": "python",
+          "language": "python",
+          "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+          "tables_used": [
+            "docs/reports/rl_readiness_20260907/compare_cams_calendar5.json"
+          ],
+          "executed_at": "2026-09-07T11:45:46.438272+00:00"
+        }
+      },
+      {
+        "id": "script",
+        "label": "当前训练启动脚本",
+        "path": "scripts/run_verl_smoke.sh",
+        "identity": {
+          "path": "scripts/run_verl_smoke.sh",
+          "bytes": 9337,
+          "sha256": "67a6bc6a6294985cf86b2cbeebb2ba0cefebb316a81eee81a1e830d786cd64f7"
+        },
+        "query": {
+          "engine": "python",
+          "language": "python",
+          "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+          "tables_used": [
+            "scripts/run_verl_smoke.sh"
+          ],
+          "executed_at": "2026-09-07T11:45:46.438272+00:00"
+        }
+      },
+      {
+        "id": "driver",
+        "label": "冻结策略调用端",
+        "path": "src/sitian/agents/llm_openai.py",
+        "identity": {
+          "path": "src/sitian/agents/llm_openai.py",
+          "bytes": 11278,
+          "sha256": "fcccf4a5cb0b631c78494222229effd2cb2360a3ffed7324bc2ff85d80bb473e"
+        },
+        "query": {
+          "engine": "python",
+          "language": "python",
+          "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+          "tables_used": [
+            "src/sitian/agents/llm_openai.py"
+          ],
+          "executed_at": "2026-09-07T11:45:46.438272+00:00"
+        }
+      },
+      {
+        "id": "runtime",
+        "label": "训练端调用适配器",
+        "path": "src/sitian/integrations/verl_runtime.py",
+        "identity": {
+          "path": "src/sitian/integrations/verl_runtime.py",
+          "bytes": 5259,
+          "sha256": "c0159bb216c71509504c06b63a7eca75657dfb0f1c45b0b9b29a64bebdc6125f"
+        },
+        "query": {
+          "engine": "python",
+          "language": "python",
+          "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+          "tables_used": [
+            "src/sitian/integrations/verl_runtime.py"
+          ],
+          "executed_at": "2026-09-07T11:45:46.438272+00:00"
+        }
+      },
+      {
+        "id": "claim",
+        "label": "项目科学主张草案",
+        "path": "docs/SCIENTIFIC_CLAIM.md",
+        "identity": {
+          "path": "docs/SCIENTIFIC_CLAIM.md",
+          "bytes": 9051,
+          "sha256": "6c9df4d9cc82a50818d5fb979c7a2a5500f2f30dc568af3f2755ba7b9fa9ca7d"
+        },
+        "query": {
+          "engine": "python",
+          "language": "python",
+          "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+          "tables_used": [
+            "docs/SCIENTIFIC_CLAIM.md"
+          ],
+          "executed_at": "2026-09-07T11:45:46.438272+00:00"
+        }
+      },
+      {
+        "id": "schema",
+        "label": "当前预报输出合同",
+        "path": "src/sitian/schema.py",
+        "identity": {
+          "path": "src/sitian/schema.py",
+          "bytes": 29315,
+          "sha256": "9485c89768da63ffb98a49455cb2efd2d01aa63939af525fce132cc2adf6402d"
+        },
+        "query": {
+          "engine": "python",
+          "language": "python",
+          "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+          "tables_used": [
+            "src/sitian/schema.py"
+          ],
+          "executed_at": "2026-09-07T11:45:46.438272+00:00"
+        }
+      },
+      {
+        "id": "protocol",
+        "label": "本次定位、训练目标和对照实验建议",
+        "path": "docs/FORECASTER_AGENT_PROTOCOL_2026-09-07.md",
+        "identity": {
+          "path": "docs/FORECASTER_AGENT_PROTOCOL_2026-09-07.md",
+          "bytes": 14701,
+          "sha256": "c50378cae7939a1eb967d73c15213e01da9ca458a3c242aed87072776277583b"
+        },
+        "query": {
+          "engine": "python",
+          "language": "python",
+          "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+          "tables_used": [
+            "docs/FORECASTER_AGENT_PROTOCOL_2026-09-07.md"
+          ],
+          "executed_at": "2026-09-07T11:45:46.438272+00:00"
+        }
+      }
+    ],
+    "blocks": [
+      {
+        "id": "title",
+        "type": "markdown",
+        "body": "# 司天污染预报 Agent：科学定位与 96G 云端开训审计"
+      },
+      {
+        "id": "summary",
+        "type": "markdown",
+        "body": "## 可以进入云端受控试训，正式长训仍需补齐验收\n\n**定位成立，数据与环境已足以支撑第一轮 Agent RL 实验。当前还没有可核验的训练成功记录，不能把环境就绪等同于训练已就绪。**\n\n以单张支持 BF16 的 NVIDIA 96 GB GPU、Qwen3-8B BF16 基座加 LoRA 为假设，云端训练在资源量级上可行；具体显存峰值、兼容性和吞吐需要目标机器验证。本次没有连接云端 GPU，也没有启动训练。\n\n最优先补齐的是：冻结探针与训练端的终止规则一致、真实参数更新与恢复验收、正式训练的数据与验证配置。全国覆盖、机制忠实性和跨污染类型增值，则需要训后的独立实验回答。\n\n本次复核结论可用于决定下一步试验投入，不能作为模型能力认证。审计时间为 2026-09-07；当前评分版本 0.8.1，输出合同版本 0.6.4。",
+        "sourceId": "audit"
+      },
+      {
+        "id": "position",
+        "type": "markdown",
+        "body": "## 把预报员的证据决策过程作为研究对象，是合理的主线\n\n建议主 claim 表述为：**在起报时刻可获得的多源证据和固定工具预算下，Agent RL 能改善 LLM 的证据选择、跨源综合和预报订正，使其在未参与训练的城市与时段形成可核验的预报技能；评估这种改进是否覆盖 PM2.5、O3 和 PM10 主导情形。**\n\n业务角色应定位为污染预报员。CAMS、GFS、IFS 是证据来源；同信息集统计订正是检验“推理是否带来额外增值”的对照。主要的 RL 归因必须比较同一可训练基座、同一工具集、同一预算下的 frozen、必要时 SFT、RL 策略。仅比较 RL 与 CAMS，无法将收益归因于 RL。\n\n生态位不同并不免除结果评价。平均浓度误差无需成为唯一胜负标准，但必须如实报告事件漏报与空报、过程起止和峰值、首污、区间校准、证据忠实性及计算成本。不能预先写“回归器做不到结构化决策”“LLM 必然善于稀有配置”“平均 MAE 回归器几乎必胜”。这些是待检验判断，无法由模型类别推出。\n\n当前模型实际提交 PM2.5、PM10、O3 的区间与证据引用；等级、首污、过程头由环境从区间中点派生。这是合理的任务简化，但论文应明确智能体的直接决策变量，不能把派生结果描述为三个独立学成的判断模块。也不能将 PM10 首污标签直接等同于沙尘机制。"
+      },
+      {
+        "id": "training_objective",
+        "type": "markdown",
+        "body": "## 训练目标是有目的地取证、综合订正与可靠提交\n\n训练应优化四类能力：围绕当前疑点选择证据；根据指导可信度决定是否及如何订正；形成浓度和不确定性判断；将决策策略用于新城市、新时段和不同污染主导类型。合理使用可靠指导、决定不订正，也应能够得到高分。工具调用次数和推理文字长度不是目标。\n\n首轮保留当前结果奖励和低权重 grounding，以固定工具/token 预算控制成本；不增加固定流程或更长推理的奖励。区间和事件塑形分只用于训练，结论仍看真实覆盖/宽度、原始 interval score 与硬 CSI/POD/FAR。\n\n建议采用“给定证据学判断 → 自主取证学流程”的课程，全部保留 thinking-on。阶段 A 用预先固定的证据包做一次提交的决策 RL；阶段 B 开放工具选择与停止时机。如果 BF16 基座在原生路径上已能稳定取证，也可直接从小规模多轮试训开始。格式 SFT 仅在主要瓶颈确实是格式或工具行为时使用，并保留 SFT-only 对照。\n\n这套课程在仓库已有设计动机，但固定证据阶段尚未落实为当前训练入口。任何阶段都只给证据与确定性计算，不向策略提供真值或建议答案。",
+        "sourceId": "protocol"
+      },
+      {
+        "id": "baseline_protocol",
+        "type": "markdown",
+        "body": "## 主对照识别 RL 收益，业务对照检验实际增值\n\n| 对照 | 要回答的问题 | 地位 |\n|---|---|---|\n| 同基座 frozen Agent | 同一 LLM 经训练是否更会预报？ | 必须；同 BF16 权重起点与运行协议 |\n| SFT-only Agent | 额外收益是否来自 RL？ | 使用过 SFT 就必须 |\n| 一次性综合、固定多轮流程 | 自主取证是否比给定证据或固定流程更有效？ | 支撑 agency 主张 |\n| 持续性、气候态 | 是否只学会简单套用？ | 基本下限 |\n| CAMS、简单历史偏差订正 | 是否超过直接发布指导？ | 业务参照 |\n| 同信息集强 tabular / MOS | 增益能否用常规拟合解释？ | 增值对照 |\n| 官方业务发布、专家 | 达到何种业务水平？ | 前瞻同层参照 |\n\n商业大模型可作同 harness 下的经验参照；不是理论上界。原始气象模式场是证据，不能拿气象变量误差直接与污染预报比较。官方发布包含其他资料和模式，不能称为纯人脑能力；只比较共同的城市、时次、lead 和输出字段。\n\n后续可将 MOS 输出作为指导工具，比较“直接发布 MOS”“MOS + frozen Agent”“MOS + RL Agent”，更直接检验预报员层的增值。相关 LLM 臂必须获得同一指导，训练案例使用带时间隔离的折外 MOS 预测。该扩展需要新信息集版本，不必作为当前首轮开训的依赖。\n\n各 LLM 臂要固定 thinking、可用信息、工具预算、采样数、终止和重试规则。现有 AWQ 冻结结果能用于开发探针，正式 RL 归因应补同 BF16 基座的 frozen 结果。单条预报与 k 次采样集合分开比较，不能让 RL 使用更多采样后把计算收益计作参数学习。",
+        "sourceId": "protocol"
+      },
+      {
+        "id": "agency_design",
+        "type": "markdown",
+        "body": "## 用匹配训练的对照检验多步决策，避免混入额外训练收益\n\n最小识别结构为四个实验：frozen 单次综合、frozen 多轮 Agent、RL 单次综合、RL 多轮 Agent。RL Agent 对 frozen Agent 检验 RL 收益；RL Agent 对匹配训练的单次综合检验交互方案收益。若要进一步声称自主选择有效，应加入匹配训练量的固定多轮流程。\n\n如果先训练阶段 A 再转阶段 B，不能只用较早的 A checkpoint 作最终 agency 对照：B 已额外训练。应从同一个 A checkpoint 分出“继续一次提交训练”和“转自主取证训练”，匹配后续数据与训练量。\n\n完整固定证据包与有限预算取证回答不同问题。前者检验证据整合，后者检验在同一个可查询资料库中如何选择；有限预算下不要求每条轨迹最后读到完全相同的字段，但必须固定取证的机会和成本。固定证据包不能根据真值或成功轨迹事后挑选。\n\n最低科学结果是同一模型经过 RL 获得可泛化的预报技能；证据忠实、自主取证增值、超过统计订正和接近业务发布属于分别需要证明的结论。只提升格式或引用，不算已经学会污染预报。即便相对 frozen 改善，如果仍明显逊于直接发布可用指导，也不能据此声称已具备业务部署价值。",
+        "sourceId": "protocol"
+      },
+      {
+        "id": "dataset",
+        "type": "markdown",
+        "body": "## 全国案例已完成，泛化结论仍受季节和事件样本限制\n\n一个 case 对应一个目标城市、一个起报日和未来 5 天。下表的“事件”按隐藏真值中至少一天 AQI **等级 ≥4** 定义，不等同于互斥抽样标签 event；也不是 AQI 数值 ≥4。\n\n| 数据用途 | case 数 | 城市数 | 起报日数 | 隐藏真值事件 case |\n|---|---:|---:|---:|---:|\n| 清洗后原始 train | 4,804 | 120 | 304 | 894 |\n| 最终 RL train | 3,061 | 112 | 241 | 383 |\n| 暖季 val | 781 | 112 | 51 | 228 |\n| 冬季选择集 | 344 | 85 | 11 | 137 |\n| 时间 test | 1,472 | 120 | 46 | 27 |\n| 整城 OOD test | 178 | 8 | 46 | 15 |\n\n原始池 7,548 case；观测有效性清洗排除 491 case，保留 7,057 case。冬季日期隔离和整城隔离后，实际拟合池为 3,061 case、112 城、241 个起报日。不能以 7,548 作为实际 RL 训练样本量。\n\n最终训练集与 val、test、冬季选择集均无 case 或城市—目标日期重叠；与整城 OOD val/test 无目标城市重叠。训练、验证、冬季选择集的全部输入文件重新计算内容哈希，与训练 manifest 一致；6 份 Parquet 文件哈希也一致。无可见证据文件缺失。\n\n训练与 checkpoint 选择所需的案例包合计约 1.26 GB（十进制，含隐藏评分真值），并非需要把全部原始气象下载档案放入 GPU 显存。部署仍须补齐历史偏差索引、配置、依赖和模型权重，并重建云端路径。\n\n整城 OOD test 的 178 case 是原时间 test 的子集，不能重复计为新的独立样本。它有 15 个隐藏真值事件，但没有冬季案例；冬季选择集只有 11 个起报日，也不能当作未参与选型的终评集。全国多地区覆盖已具备，跨城市、跨季节、跨机制均有效的结论尚未具备。",
+        "sourceId": "audit"
+      },
+      {
+        "id": "event_coverage_chart",
+        "type": "chart",
+        "chartId": "event_coverage"
+      },
+      {
+        "id": "environment",
+        "type": "markdown",
+        "body": "## 工具、证据和奖励合同已通过本次检查\n\n本次运行现有测试得到 **202 passed**。独立重跑奖励审计，21 条当前不变量全部通过；全量重跑专家证据合同，7,057 个有效 case 在污染初始状态、形势演变、水平输送、垂直扩散、污染机理、地形适配、指导与校准、过程时序、输出格式和时间门禁上均通过。\n\nveRL 已有原生多轮工具适配、终端奖励传播、工具 token 的 loss mask 设计、LoRA 权重同步配置、组内均值中心化且不除标准差的 GRPO，以及按 outcome_composite 过滤零方差组。比较分排除了引用奖励，可避免凭“会引用”得到表观预报增益。\n\n以上属于代码与数据合同证据。专家证据审计检查的是规定的字段和时间规则齐备，不等于专家认可所有证据解释；奖励不变量通过也不等于奖励权重已被专家验证。尚未获得训练时完整参数同步、有效梯度与 checkpoint 恢复的实测证据。"
+      },
+      {
+        "id": "signal",
+        "type": "markdown",
+        "body": "## 冻结策略有可优化信号，但当前预报结果仍落后于指导\n\n正式冻结探针使用 Qwen3-8B-AWQ、50 case、每 case 8 次采样、温度 1.0，共 400 次 rollout。产物文件名仍含 v079，但其内部评分身份为 0.8.1 / 0.6.4；本次核对的环境、评分、输出合同和探针实现哈希均匹配，不能仅依据旧文件名判为过期。\n\n最终合法提交 389/400（97.25%）；首次合法提交 380/400（95%）。所有 50 组都有数值结果分差异。有效提交中，可核验引用断言的通过率为 91.73%；完整 grounding 为 273/389（70.18%），若以全部尝试为分母则为 68.25%。这表明存在奖励排序信号，尚不能证明差异来自正确的污染机制推理，也不能保证 RL 的梯度方向有利于泛化。\n\n按 case 内先平均、失败保留零分、再按起报日分块，当前模型 outcome_composite 为 0.5291；同一 50-case 样本的 CAMS 为 0.6309，tabular 为 0.6830。与 CAMS 的差值 −0.1018，95% 区间 [−0.1759, −0.0299]；与 tabular 的差值 −0.1539，95% 区间 [−0.1950, −0.1170]。\n\n这些是 frozen baseline 结果，不能作为 RL 已失败的证据，也不能要求裸模型先胜过 CAMS 才允许训练。10 个隐藏真值事件组中，只有 6 组出现过至少一条预报等级 ≥4 的成功提交，说明高影响事件的正向探索仍偏弱。"
+      },
+      {
+        "id": "parity",
+        "type": "markdown",
+        "body": "## 开训风险一：冻结探针的重试行为没有在训练端对齐\n\n冻结调用端遇到没有合法工具调用的回复，会追加“请通过工具调用继续”的用户提醒并重试。锁定的 veRL ToolAgentLoop 遇到同类回复则立即终止；司天适配器没有覆盖这条生成终止路径。原生循环另有 assistant turn 数和累计 token 终止条件，需要一并核对。\n\n当前 389 条成功提交中，**53 条经历过这种无工具轮次**。若仅筛出未经历该重试的成功轨迹，得到 336/400，即 84%。这是现有轨迹对重试机制的依赖统计，**不是实测 veRL 提交率，也不是准确预测其下降幅度**；两端解析、tokenization、权重精度、轮数和采样仍有差异。\n\n因此冻结探针的 97.25% 不能充当训练端格式就绪证明。最小修复是先统一终止、重试、解析与预算合同，再在将要训练的 BF16 基座及原生 veRL 采样路径上重测。无需为了保留高提交率而选择更宽松的实现，关键是评测和训练一致。",
+        "sourceId": "audit"
+      },
+      {
+        "id": "smoke",
+        "type": "markdown",
+        "body": "## 开训风险二：训练日志尚无完成闭环的证据\n\n本次重跑开训检查，数据、轨迹格式、上下文、组内信号和引用五组门禁通过，训练栈与硬件冒烟门禁失败。training_smoke.json 不存在；现有 3 个 checkpoint 目录内没有文件。\n\n最近日志请求的是 1.7B、6 步试跑；日志里未找到 actor/pg_loss、权重同步完成或 checkpoint 恢复记录，却有 87 条工具调用解码错误。日志末尾仍是 running: 2、finished: 0。只能认定“没有可核验的完成证据”，不能仅凭日志将根因归为显存不足，也不能认定梯度已更新。\n\n验收应包含：实际 optimizer step、有限 loss/梯度、actor 和 rollout 使用同一当前策略、assistant/tool mask 正确、参数确实变化、保存后真实恢复继续训练，以及每批可用组比例和耗时。结构合同测试与真实训练验收要分别留证。",
+        "sourceId": "audit"
+      },
+      {
+        "id": "launch",
+        "type": "markdown",
+        "body": "## 开训风险三：现有入口仍是小样本冒烟配置\n\nrun_verl_smoke.sh 默认读取 64-case smoke_train 和 16-case smoke_val；trainer.test_freq=-1，且 val_before_train=False。仅将模型换成 8B、步数换成 100，并不会自动使用 3,061-case 正式训练集，也不会执行暖季与冬季双轨验证。\n\n正式入口应显式使用 train.parquet 和 selection.parquet，按固定频率执行验证、分开记录暖季/冬季/OOD 诊断，并保持 test 不参与选择。当前脚本也没有通过环境变量配置定期验证的开关，需要在独立正式配置里落实。\n\n文档建议上云时 layered_summon=True，但脚本固定单 GPU，且同一脚本已说明单卡 FSDP NO_SHARD 应使用 False。96 GB 是显存容量，不能据此启用多卡相关路径。单卡应保留 False 并在目标栈检查；多卡另做配置审计。\n\n现行代码门禁是无工具轮次比例 ≤20%、单次 prompt 峰值的 P95 ≤28,000；训练设计文档部分段落仍写 ≤5%、每次 ≤24K。责任切分文档的 G11 已解释修改理由：thinking-on 的格式探索交给 RL 学习，并允许合理增加取证。无需机械恢复旧门槛，但应统一文档与实际协议。实际探针最大 prompt 为 31,657，P95 为 25,438，有 3 条超过 28,000；32,768 上下文下，最大那条只剩 1,111 token。分位数预算不能被解释为每条轨迹都有足够的提交余量。"
+      },
+      {
+        "id": "hardware",
+        "type": "markdown",
+        "body": "## 单张 96 GB 适合先验证 8B LoRA，长上下文并发必须实测\n\n以下为资源估算而非实测。8B 级 BF16 基座的单份权重约 16–17 GB；LoRA 可以显著减少可训练参数的梯度和优化器状态，但 rollout 权重、KV cache、激活和同步峰值仍需显存。veRL 官方提供 FSDP/PEFT 与 vLLM/SGLang 的 LoRA 支持。[veRL LoRA 文档](https://verl.readthedocs.io/en/latest/advance/ppo_lora.html)\n\n依据 Qwen3-8B 官方配置的 36 层、8 个 KV 头和 128 head_dim，BF16 KV cache 的理论大小为每 token 144 KiB；一条完整 32,768-token 序列约 4.5 GiB，8 条约 36 GiB，尚不含上述其他开销。group=8 表示每 case 采样数量，不要求 8 条同时驻留；可从并发 2–4 起测，再增加到 8。[官方模型配置](https://huggingface.co/Qwen/Qwen3-8B/raw/main/config.json)\n\n建议云端初始采用 8B BF16 + LoRA rank 32、单卡 layered_summon=False、group=8、温度 1.0、梯度检查点和动态微批；先少量并发完成更新与恢复，再测真实吞吐。主机内存以 128 GB 作为采购余量建议，不作为已验证的最低需求。全参数训练在普通 BF16/Adam 常驻方案下，光训练状态就可能超过 96 GB，不属于这里的可行性判断。\n\n不要根据显存容量承诺训练天数或租赁成本。先记录有效 case/小时、每个 optimizer step 耗时和峰值显存，再决定长训预算。GPU 型号、驱动、CUDA、torch/vLLM 兼容性仍待目标机器核验。"
+      },
+      {
+        "id": "science",
+        "type": "markdown",
+        "body": "## 成功需要分别证明能力改进、证据忠实和泛化\n\n**能力改进：**同基座 frozen → RL，在固定信息集和预算下，改善独立验证的结果分及事件硬指标。CAMS 是业务参照，tabular 是增值对照；若宣称总体不劣，应预注册有业务含义的非劣界值，不能把“没有显著差异”当作不劣。若使用 CI 下界 >0，则实际检验的是优越性。\n\n**证据忠实：**引用字段真实，仅证明引用可核验。还需要删被引证据与删匹配的未引证据、仅给被引证据的充分性、矛盾或错误指导的干预实验。现有通道遮蔽脚本是可用入口，但未完成上述完整实验。对污染形成机制的因果正确性，仍需要独立标签或专家判断。\n\n**逐步决策的价值：**至少增加同信息、同预算的固定取证顺序和一次性综合对照。否则增益可能来自更完整的输入、更强确定性摘要或更多采样，无法归因于自主取证与多步决策。检验结论和工具行为对证据干预的响应，比自由文本推理长度更有说服力。\n\n**泛化：**现有留城市设计支持在若干未参与策略训练的目标城市测试；它不是整片污染区制留出，也不排除这些城市的历史气候态或空间实况作为合法证据。按地区、PM2.5/O3/PM10 主导类型、季节、lead 和数据缺失情形分别报告。第 5 天缺 CAMS 指导，应将第 1–4 天与第 5 天分开，避免把外推和同 lead 指导订正混在一起。\n\n当前时间 test 只有 27 个事件 case，空间 OOD test 只有 15 个；二者都不足以完成预注册的 ≥100 事件 case 终评。冬季选择集已经参与选型，不能再次用作最终冬季证据。继续积累 2026–27 冬季前瞻数据与人类同层发布参照，是强 claim 的必要补充。NO2/CO/SO2 不在当前直接区间输出头中，也不应宣称六类污染物均已验证。",
+        "sourceId": "audit"
+      },
+      {
+        "id": "method",
+        "type": "markdown",
+        "body": "## 本次证据边界与稳健性\n\n本次做了源码路径核查、202 项现有测试、全量专家证据和奖励审计、训练前门禁重跑、7,057 个有效案例的元数据/真值统计、训练输入及 Parquet 内容哈希复核，以及冻结策略对 CAMS/tabular 的配对比较重算。没有重训 tabular、没有新增模型推理、没有运行 GPU 训练，也没有重新下载全部原始气象档案。\n\n主比较先在 case 内平均 8 个 rollout，再按 30 个起报日块 bootstrap，失败保留零分，不把 400 条 rollout 当作 400 个独立 case。额外改用 5 日历日块时只剩 10 个块；对 CAMS 的差值仍为负，区间 [−0.1618, −0.0245]，但程序标注为独立块太少、仅描述性。正式推断应增加独立天气过程与时间块，尤其不能用多个邻近城市和重叠目标日制造统计把握度。\n\n当前总体得分是分层抽样样本上的平均，并非全国全部业务日的自然频率期望。后续应同时给宏平均分层表现和按明确目标业务分布加权的结果。缺失、补档和时间门禁规则已经编码，但回溯重处理产品仍不等于当时实际发布的原始 feed；前瞻数据应保留实际可用时间。\n\n已有研究表明，多轮工具使用可以由结果奖励优化，预测任务也存在结果 RL 的成功实例；它们分别来自问答与现实事件概率预测，不能直接证明污染预测必然成功。[Search-R1](https://arxiv.org/abs/2503.09516)；[Outcome-based RL to Predict the Future](https://arxiv.org/abs/2505.17989)"
+      },
+      {
+        "id": "next",
+        "type": "markdown",
+        "body": "## 下一步以一轮可判定成败的云端实验为目标\n\n1. **本地收口：**统一科学文档、当前版本与门禁定义；修复冻结/原生循环差异；建立独立的 96 GB 单卡正式配置，包含全训练集、定期验证、路径和依赖锁定。\n2. **目标 GPU 验证：**先使用将要训练的 8B BF16 策略跑原生轨迹探针，随后完成少量真实更新、参数同步、保存恢复和工具 mask 检查。1.7B 可以用于排查框架问题，无需把小模型先胜 CAMS 设成进入 8B 试验的前提。\n3. **学习试验：**在固定合同上跑约 50–100 个 optimizer step，按固定间隔评测。格式或引用若成为主要障碍，再做小型、经验证的格式/工具冷启动 SFT；不预设 SFT 必需，也不改变奖励来追逐好看的曲线。\n4. **决定是否长训：**训练稳定、采样有效且独立验证出现技能改善趋势，才扩展步数。优先观察事件召回/空报、区间宽度与校准、冬季退化、工具依赖和有效样本吞吐。训练分涨而独立结果不涨，应先诊断失败原因，不能以增加算力替代证据。\n5. **完成科学检验：**同基座 frozen/SFT/RL 归因、同信息集基线、固定取证与单次综合对照、证据干预、一次性终评及冬季前瞻。\n\n我的判断是：**值得做，已有建设足以支撑试验；能否获得预报技能与全国泛化，需要真实 RL 与独立验证回答。** 目前最值得投入的是打通并验证训练过程，继续无限扩充工具或案例不是开训前的必要条件。"
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-09-07T12:03:32.978808+00:00",
+    "status": "ready",
+    "datasets": {
+      "event_coverage": [
+        {
+          "split": "暖季验证",
+          "event_cases": 228,
+          "total_cases": 781,
+          "issue_dates": 51
+        },
+        {
+          "split": "冬季选择",
+          "event_cases": 137,
+          "total_cases": 344,
+          "issue_dates": 11
+        },
+        {
+          "split": "时间终评",
+          "event_cases": 27,
+          "total_cases": 1472,
+          "issue_dates": 46
+        },
+        {
+          "split": "整城终评",
+          "event_cases": 15,
+          "total_cases": 178,
+          "issue_dates": 46
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "audit",
+      "label": "2026-09-07 独立复核",
+      "path": "docs/reports/rl_readiness_20260907/evidence.json",
+      "identity": {
+        "path": "docs/reports/rl_readiness_20260907/evidence.json",
+        "bytes": 15103,
+        "sha256": "d4881c78a04272e8e3dbed5702e45c9a141e4e80fca2ecf89b4fe8512c7b3cd3"
+      },
+      "query": {
+        "engine": "sqlite",
+        "language": "sql",
+        "description": "SQLite JSON query over evidence.json bound as :evidence_json. The upstream full-case counting and provenance checks are in audit.py; this query selects the four reviewed event populations.",
+        "tables_used": [
+          "docs/reports/rl_readiness_20260907/evidence.json"
+        ],
+        "executed_at": "2026-09-07T11:45:46.438272+00:00",
+        "sql": "SELECT CASE key\n  WHEN 'val' THEN '暖季验证' WHEN 'winter_selection' THEN '冬季选择'\n  WHEN 'test' THEN '时间终评' WHEN 'ood_test' THEN '整城终评' END AS split,\n  json_extract(value, '$.truth_event_cases') AS event_cases,\n  json_extract(value, '$.cases') AS total_cases,\n  json_extract(value, '$.issue_dates') AS issue_dates\nFROM json_each(:evidence_json, '$.profiles')\nWHERE key IN ('val', 'winter_selection', 'test', 'ood_test')\nORDER BY CASE key WHEN 'val' THEN 1 WHEN 'winter_selection' THEN 2\n  WHEN 'test' THEN 3 WHEN 'ood_test' THEN 4 END"
+      }
+    },
+    {
+      "id": "preflight",
+      "label": "本次重新执行的开训检查",
+      "path": "data/interim/rl_preflight_audit_20260907.json",
+      "identity": {
+        "path": "data/interim/rl_preflight_audit_20260907.json",
+        "bytes": 458125,
+        "sha256": "b2427d3aa9e51030f6693d36ad8e14f74413881f19b72d7fba2d2b38b250c021"
+      },
+      "query": {
+        "engine": "python",
+        "language": "python",
+        "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+        "tables_used": [
+          "data/interim/rl_preflight_audit_20260907.json"
+        ],
+        "executed_at": "2026-09-07T11:45:46.438272+00:00"
+      }
+    },
+    {
+      "id": "expert",
+      "label": "本次全量专家证据合同审计",
+      "path": "data/interim/expert_evidence_audit_20260907.json",
+      "identity": {
+        "path": "data/interim/expert_evidence_audit_20260907.json",
+        "bytes": 6378,
+        "sha256": "5b312b961c8fa3614e548dbdd43e35e23e933e66c1aa18a4f55d6fdc879f1a47"
+      },
+      "query": {
+        "engine": "python",
+        "language": "python",
+        "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+        "tables_used": [
+          "data/interim/expert_evidence_audit_20260907.json"
+        ],
+        "executed_at": "2026-09-07T11:45:46.438272+00:00"
+      }
+    },
+    {
+      "id": "reward",
+      "label": "本次奖励不变量审计",
+      "path": "data/interim/reward_contract_audit_20260907.json",
+      "identity": {
+        "path": "data/interim/reward_contract_audit_20260907.json",
+        "bytes": 5085,
+        "sha256": "2738bbd105d1b26657196ef973561224753f29239c9b1f3fd018c4daa6b0dae5"
+      },
+      "query": {
+        "engine": "python",
+        "language": "python",
+        "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+        "tables_used": [
+          "data/interim/reward_contract_audit_20260907.json"
+        ],
+        "executed_at": "2026-09-07T11:45:46.438272+00:00"
+      }
+    },
+    {
+      "id": "cams",
+      "label": "本次重算：冻结策略对 CAMS",
+      "path": "docs/reports/rl_readiness_20260907/compare_cams.json",
+      "identity": {
+        "path": "docs/reports/rl_readiness_20260907/compare_cams.json",
+        "bytes": 15128,
+        "sha256": "e43078a56a60ebc18e79fa7cfe31c3f6a6b6a3c5cc635987ecacbe6447a7eb46"
+      },
+      "query": {
+        "engine": "python",
+        "language": "python",
+        "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+        "tables_used": [
+          "docs/reports/rl_readiness_20260907/compare_cams.json"
+        ],
+        "executed_at": "2026-09-07T11:45:46.438272+00:00"
+      }
+    },
+    {
+      "id": "tabular",
+      "label": "本次重算：冻结策略对同信息集 tabular",
+      "path": "docs/reports/rl_readiness_20260907/compare_tabular.json",
+      "identity": {
+        "path": "docs/reports/rl_readiness_20260907/compare_tabular.json",
+        "bytes": 15352,
+        "sha256": "596627e316bdb10aed7b5d28756a59f114bbb7432d526b18714bd9ea0799b23c"
+      },
+      "query": {
+        "engine": "python",
+        "language": "python",
+        "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+        "tables_used": [
+          "docs/reports/rl_readiness_20260907/compare_tabular.json"
+        ],
+        "executed_at": "2026-09-07T11:45:46.438272+00:00"
+      }
+    },
+    {
+      "id": "calendar",
+      "label": "5 日时间块敏感性检查",
+      "path": "docs/reports/rl_readiness_20260907/compare_cams_calendar5.json",
+      "identity": {
+        "path": "docs/reports/rl_readiness_20260907/compare_cams_calendar5.json",
+        "bytes": 15409,
+        "sha256": "19d6be1acf5cd2502afc3a7684a4beb6352c48b5fc8af7e8c091b84063f71537"
+      },
+      "query": {
+        "engine": "python",
+        "language": "python",
+        "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+        "tables_used": [
+          "docs/reports/rl_readiness_20260907/compare_cams_calendar5.json"
+        ],
+        "executed_at": "2026-09-07T11:45:46.438272+00:00"
+      }
+    },
+    {
+      "id": "script",
+      "label": "当前训练启动脚本",
+      "path": "scripts/run_verl_smoke.sh",
+      "identity": {
+        "path": "scripts/run_verl_smoke.sh",
+        "bytes": 9337,
+        "sha256": "67a6bc6a6294985cf86b2cbeebb2ba0cefebb316a81eee81a1e830d786cd64f7"
+      },
+      "query": {
+        "engine": "python",
+        "language": "python",
+        "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+        "tables_used": [
+          "scripts/run_verl_smoke.sh"
+        ],
+        "executed_at": "2026-09-07T11:45:46.438272+00:00"
+      }
+    },
+    {
+      "id": "driver",
+      "label": "冻结策略调用端",
+      "path": "src/sitian/agents/llm_openai.py",
+      "identity": {
+        "path": "src/sitian/agents/llm_openai.py",
+        "bytes": 11278,
+        "sha256": "fcccf4a5cb0b631c78494222229effd2cb2360a3ffed7324bc2ff85d80bb473e"
+      },
+      "query": {
+        "engine": "python",
+        "language": "python",
+        "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+        "tables_used": [
+          "src/sitian/agents/llm_openai.py"
+        ],
+        "executed_at": "2026-09-07T11:45:46.438272+00:00"
+      }
+    },
+    {
+      "id": "runtime",
+      "label": "训练端调用适配器",
+      "path": "src/sitian/integrations/verl_runtime.py",
+      "identity": {
+        "path": "src/sitian/integrations/verl_runtime.py",
+        "bytes": 5259,
+        "sha256": "c0159bb216c71509504c06b63a7eca75657dfb0f1c45b0b9b29a64bebdc6125f"
+      },
+      "query": {
+        "engine": "python",
+        "language": "python",
+        "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+        "tables_used": [
+          "src/sitian/integrations/verl_runtime.py"
+        ],
+        "executed_at": "2026-09-07T11:45:46.438272+00:00"
+      }
+    },
+    {
+      "id": "claim",
+      "label": "项目科学主张草案",
+      "path": "docs/SCIENTIFIC_CLAIM.md",
+      "identity": {
+        "path": "docs/SCIENTIFIC_CLAIM.md",
+        "bytes": 9051,
+        "sha256": "6c9df4d9cc82a50818d5fb979c7a2a5500f2f30dc568af3f2755ba7b9fa9ca7d"
+      },
+      "query": {
+        "engine": "python",
+        "language": "python",
+        "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+        "tables_used": [
+          "docs/SCIENTIFIC_CLAIM.md"
+        ],
+        "executed_at": "2026-09-07T11:45:46.438272+00:00"
+      }
+    },
+    {
+      "id": "schema",
+      "label": "当前预报输出合同",
+      "path": "src/sitian/schema.py",
+      "identity": {
+        "path": "src/sitian/schema.py",
+        "bytes": 29315,
+        "sha256": "9485c89768da63ffb98a49455cb2efd2d01aa63939af525fce132cc2adf6402d"
+      },
+      "query": {
+        "engine": "python",
+        "language": "python",
+        "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+        "tables_used": [
+          "src/sitian/schema.py"
+        ],
+        "executed_at": "2026-09-07T11:45:46.438272+00:00"
+      }
+    },
+    {
+      "id": "protocol",
+      "label": "本次定位、训练目标和对照实验建议",
+      "path": "docs/FORECASTER_AGENT_PROTOCOL_2026-09-07.md",
+      "identity": {
+        "path": "docs/FORECASTER_AGENT_PROTOCOL_2026-09-07.md",
+        "bytes": 14701,
+        "sha256": "c50378cae7939a1eb967d73c15213e01da9ca458a3c242aed87072776277583b"
+      },
+      "query": {
+        "engine": "python",
+        "language": "python",
+        "description": "Read-only inspection of the named project artifact; aggregate checks are reproducible with audit.py.",
+        "tables_used": [
+          "docs/FORECASTER_AGENT_PROTOCOL_2026-09-07.md"
+        ],
+        "executed_at": "2026-09-07T11:45:46.438272+00:00"
+      }
+    }
+  ]
+}
