@@ -105,8 +105,9 @@ PYTHONPATH=src .local/verl-upstream/.venv/bin/python scripts/audit_verl_runtime_
 确保首次 clone 不依赖忽略的本机文件。启动默认使用单卡；可设 `SITIAN_N_GPUS`，
 显存检查遵循 `CUDA_VISIBLE_DEVICES`，多卡默认启用 layered summon。
 
-这次验证覆盖本机软件与模型运行兼容性，未执行正式 50 步 GRPO + checkpoint 恢复，
-也未验收四卡分布式训练或预报技能。现有训练门禁继续保留，正式实验按 README 执行。
+初次适配验证覆盖本机软件与模型运行兼容性。后续已启动四卡 FSDP2 LoRA GRPO，
+完成首个分布式更新并保存 checkpoint；恢复检查、50 步 pilot 及结果位置见
+[四卡训练记录](LOCAL_4GPU_TRAINING.md)。预报技能仍需独立评估，现有训练门禁继续保留。
 
 ## Git 范围
 

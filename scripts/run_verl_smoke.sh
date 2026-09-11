@@ -16,6 +16,7 @@ experiment_name="${SITIAN_EXPERIMENT_NAME:-qwen3_1p7b_lora_reward_v079_smoke}"
 mask_audit="${SITIAN_MASK_AUDIT:-${project_root}/data/interim/qwen3_1p7b_assistant_mask_audit.json}"
 smoke_audit="${SITIAN_SMOKE_AUDIT:-${project_root}/data/interim/training_smoke.json}"
 max_gen_batches="${SITIAN_MAX_GEN_BATCHES:-0}"
+dataset_manifest="${SITIAN_DATASET_MANIFEST:-${project_root}/data/verl/manifest.json}"
 # Hardware profile knobs.  Local defaults are the certified single-4090 values;
 # an 80 GB-class cloud GPU sets SITIAN_LAYERED_SUMMON=True (multi-GPU FSDP
 # weight sync), a larger rollout memory share and more concurrent sequences.
@@ -87,6 +88,8 @@ common=(
   actor_rollout_ref.model.target_modules=all-linear
   actor_rollout_ref.model.use_remove_padding=True
   actor_rollout_ref.model.enable_gradient_checkpointing=True
+  actor_rollout_ref.actor.strategy="${SITIAN_FSDP_STRATEGY:-fsdp}"
+  actor_rollout_ref.ref.strategy="${SITIAN_FSDP_STRATEGY:-fsdp}"
   actor_rollout_ref.actor.optim.lr=3e-6
   actor_rollout_ref.actor.ppo_mini_batch_size="${ppo_mini_batch_size}"
   actor_rollout_ref.actor.use_dynamic_bsz=True
@@ -131,7 +134,7 @@ common=(
   actor_rollout_ref.ref.log_prob_max_token_len_per_gpu=32768
   actor_rollout_ref.ref.fsdp_config.param_offload=True
   trainer.critic_warmup=0
-  trainer.logger='["console"]'
+  trainer.logger="${SITIAN_LOGGERS:-[\"console\"]}"
   trainer.project_name=sitian_agent_rl
   trainer.experiment_name="${experiment_name}"
   trainer.n_gpus_per_node="${n_gpus}"
@@ -153,7 +156,7 @@ done
 if [[ "${SITIAN_SKILL_PILOT:-0}" == 1 ]]; then
   : "${SITIAN_VALIDATION_DIR:?pilot needs a validation output directory}"
   common+=(
-    trainer.val_before_train=True
+    trainer.val_before_train="${SITIAN_VAL_BEFORE_TRAIN:-True}"
     trainer.test_freq=25
     trainer.validation_data_dir="${SITIAN_VALIDATION_DIR}"
     data.val_batch_size=8
@@ -241,6 +244,6 @@ cd "${project_root}"
   --log "${log_file}" --checkpoint-dir "${checkpoint_dir}" \
   --expected-steps "${steps}" --model "${model_path}" --verl-root "${verl_root}" \
   --mask-audit "${mask_audit}" \
-  --dataset-manifest data/verl/manifest.json \
+  --dataset-manifest "${dataset_manifest}" \
   --expected-rollout-n "${rollout_n}" \
   --out "${smoke_audit}"

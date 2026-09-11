@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 from sitian.provenance import file_identity, case_bundle_snapshot
 from sitian.scoring import reward_spec
+from sitian.paths import resolve_case_dir
 
 
 def select(rows, count, seed):
@@ -38,6 +39,9 @@ def select(rows, count, seed):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--out', required=True)
+    p.add_argument('--data-dir', type=Path, default=ROOT / 'data/verl')
+    p.add_argument('--n-gpus', type=int, default=1)
+    p.add_argument('--train-batch-size', type=int, default=2)
     args = p.parse_args()
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -47,12 +51,12 @@ def main():
     panel = []
     sources = []
     for cohort, count in [('val', 48), ('challenge_winter', 16)]:
-        path = ROOT / 'data/verl' / f'{cohort}.parquet'
+        path = args.data_dir / f'{cohort}.parquet'
         sources.append(file_identity(path, relative_to=ROOT))
         for row in select(pq.read_table(path).to_pylist(), count, seed):
             row['extra_info'].update(evaluation_panel=True, evaluation_seed=seed)
             panel.append(row)
-    train_path = ROOT / 'data/verl/train.parquet'
+    train_path = args.data_dir / 'train.parquet'
     train = pq.read_table(train_path).to_pylist()
     ids = [r['extra_info']['case_id'] for r in panel]
     assert len(ids) == len(set(ids)) == 64
@@ -61,18 +65,22 @@ def main():
     cases = []
     for row in panel:
         info = row['extra_info']
-        path = next(iter(info['tools_kwargs'].values()))['create_kwargs']['case_dir']
+        path = str(resolve_case_dir(next(iter(info['tools_kwargs'].values()))['create_kwargs']['case_dir']))
         cases.append({k: info[k] for k in ['case_id', 'issue_date', 'stratum', 'split']} | {'case_dir': path})
     tracked = ['src/sitian/integrations/verl_runtime.py', 'src/sitian/integrations/verl_bridge.py',
                'src/sitian/scoring.py', 'src/sitian/schema.py', 'src/sitian/env.py',
                'src/sitian/hard_metrics.py', 'scripts/run_verl_smoke.sh',
                'scripts/run_rl_skill_pilot.sh', 'scripts/evaluate_rl_skill_pilot.py',
-               'scripts/prepare_rl_skill_pilot.py', 'data/verl/manifest.json',
+               'scripts/prepare_rl_skill_pilot.py', 'src/sitian/paths.py',
+               'scripts/run_local_4gpu.sh', 'scripts/audit_local_training_inputs.py',
                'configs/verl/sitian_tools.yaml', 'configs/verl/sitian_agent_loop.yaml']
     protocol = {
         'created_utc': datetime.now(timezone.utc).isoformat(),
         'purpose': 'exploratory development RL skill pilot; not national generalization confirmation',
         'steps': 50, 'evaluations': [0, 25, 50], 'primary_endpoint': 50,
+        'hardware': {'n_gpus': args.n_gpus, 'rollout_tensor_parallel': 1},
+        'training': {'train_batch_size': args.train_batch_size, 'rollout_n': 8,
+                     'lora_rank': 32, 'lora_alpha': 32, 'learning_rate': 3e-6},
         'model': 'Qwen/Qwen3-8B original BF16, fresh LoRA; no smoke adapter',
         'train_cases': len(train), 'seed': seed, 'evaluation_n': 1,
         'evaluation_temperature': 1.0, 'thinking': True,
@@ -85,7 +93,8 @@ def main():
         'uncertainty': 'paired 7-day issue-date block bootstrap; few clusters, exploratory only',
         'decision': 'No success claim from training reward alone. Separate submission gains from common-valid forecast changes. Step 25 diagnostic; no endpoint cherry-picking.',
         'scope_limits': 'Stratum-balanced 48 warm-val + 16 winter cases, not prevalence representative. One rollout/case. Test and spatial OOD test sealed. Agency-specific claim needs fixed-evidence/flow ablations.',
-        'sources': sources + [file_identity(train_path, relative_to=ROOT)],
+        'sources': sources + [file_identity(train_path, relative_to=ROOT),
+                              file_identity(args.data_dir / 'manifest.json', relative_to=ROOT)],
         'panel_identity': file_identity(out / 'panel.parquet', relative_to=ROOT),
         'code_and_gate': [file_identity(ROOT / f, relative_to=ROOT) for f in tracked],
         'case_snapshot': case_bundle_snapshot([r['case_dir'] for r in cases], relative_to=ROOT),

@@ -196,9 +196,13 @@ def _config_checks(config_path: Path) -> dict[str, bool]:
         ),
         "rollout_and_optimizer_group_sizes_align": (
             rollout.n == 8
-            and cfg.data.train_batch_size == 2
+            and cfg.data.train_batch_size == int(os.environ.get("SITIAN_TRAIN_BATCH_SIZE", "2"))
+            and cfg.data.train_batch_size > 0
             # V1 expands this prompt count by rollout.n before actor training.
-            and actor.ppo_mini_batch_size == 2
+            and actor.ppo_mini_batch_size == cfg.data.train_batch_size
+            and (actor.ppo_mini_batch_size * rollout.n) % (
+                int(cfg.trainer.n_gpus_per_node) * int(cfg.trainer.nnodes)
+            ) == 0
             and float(rollout.temperature) == 1.0
         ),
         # The stack smoke length is set by SITIAN_SMOKE_STEPS (6 locally: the
